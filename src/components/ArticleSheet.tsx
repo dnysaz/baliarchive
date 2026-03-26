@@ -34,7 +34,7 @@ export default function ArticleSheet({ isOpen, onClose, post }: ArticleSheetProp
   // only bail on content when post is truly null AND not open
   return (
     <div
-      className={`fixed bottom-0 left-0 right-0 z-[300] bg-white text-black rounded-t-[40px] shadow-[0_-10px_60px_rgba(0,0,0,0.25)] max-h-[94vh] flex flex-col transition-transform duration-500 ease-out ${
+      className={`fixed bottom-0 left-0 right-0 lg:left-1/2 lg:-translate-x-1/2 lg:max-w-2xl z-[300] bg-white text-black rounded-t-[40px] shadow-[0_-10px_60px_rgba(0,0,0,0.25)] max-h-[94vh] flex flex-col transition-transform duration-500 ease-out ${
         isOpen && post ? 'translate-y-0 pointer-events-auto' : 'translate-y-full pointer-events-none'
       }`}
     >

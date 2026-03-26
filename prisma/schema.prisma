@@ -10,20 +10,47 @@ datasource db {
   url      = "file:./dev.db"
 }
 
-model Post {
+model User {
   id        Int      @id @default(autoincrement())
-  kabupaten String
-  province  String
-  category  String
-  title     String
-  tagline   String
-  likes     String
-  bestTime  String
-  howToGet  String
-  cost      String
-  body      String
-  venue     String?
-  images    Image[]
+  email     String   @unique
+  name      String?
+  password  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Location {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique
+  posts     Post[]
+}
+
+model Hashtag {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique
+  posts     Post[]
+}
+
+model Post {
+  id         Int      @id @default(autoincrement())
+  kabupaten  String   
+  location   Location @relation(fields: [locationId], references: [id])
+  locationId Int
+  province   String   @default("Bali")
+  category   String   
+  hashtag    Hashtag  @relation(fields: [hashtagId], references: [id])
+  hashtagId  Int
+  title      String
+  tagline    String
+  likes      String   @default("0")
+  bestTime   String
+  howToGet   String
+  cost       String
+  body       String
+  venue      String?
+  images     Image[]
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 }
 
 model Image {

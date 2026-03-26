@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Cormorant_Garamond, DM_Sans } from "next/font/google";
 import "./globals.css";
+import Providers from "@/components/Providers";
 
 const dmSans = DM_Sans({
   subsets: ["latin"],
@@ -37,7 +38,9 @@ export default function RootLayout({
       className={`${dmSans.variable} ${cormorantGaramond.variable} h-full overflow-hidden`}
     >
       <body className="bg-black text-white selection:bg-amber-500/30 font-sans">
-        {children}
+        <Providers>
+          {children}
+        </Providers>
       </body>
     </html>
   );

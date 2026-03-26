@@ -64,8 +64,8 @@ export default function SearchOverlay({ isOpen, onClose, searchQuery, setSearchQ
             className="w-full bg-transparent border-none outline-none text-[16px] text-[#111] py-5 px-3"
           />
           <button 
-            className="mr-3 w-8 h-8 rounded-full bg-black/5 flex items-center justify-center text-gray-500 appearance-none outline-none cursor-pointer pointer-events-auto"
-            onClick={(e) => { e.preventDefault(); e.stopPropagation(); onClose(); setSearchQuery(''); }}
+            className="mr-3 w-8 h-8 rounded-full bg-black/5 flex items-center justify-center text-gray-500 appearance-none outline-none cursor-pointer pointer-events-auto active:scale-95 transition-transform"
+            onPointerDown={(e) => { e.preventDefault(); e.stopPropagation(); onClose(); setSearchQuery(''); }}
           >
             ✕
           </button>
@@ -79,10 +79,10 @@ export default function SearchOverlay({ isOpen, onClose, searchQuery, setSearchQ
               {results.map(post => (
                 <button 
                   key={post.id} 
-                  className="w-full flex items-center gap-4 px-5 py-3 hover:bg-zinc-50 text-left transition-colors cursor-pointer"
-                  onClick={() => { onSelectPost(post); onClose(); }}
+                  className="w-full flex items-center gap-4 px-5 py-3 hover:bg-zinc-50 text-left transition-colors cursor-pointer active:bg-zinc-100"
+                  onPointerDown={() => { onSelectPost(post); onClose(); }}
                 >
-                  <img src={post.images[0].url} className="w-12 h-12 rounded-lg object-cover bg-zinc-100" alt="" />
+                  <img src={post.images[0].url} className="w-12 h-12 rounded-lg object-cover bg-zinc-100 pointer-events-none" alt="" />
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-bold text-zinc-900 truncate">{post.title}</p>
                     <p className="text-[10px] text-zinc-400 font-medium">{post.kabupaten}</p>
@@ -106,8 +106,8 @@ export default function SearchOverlay({ isOpen, onClose, searchQuery, setSearchQ
               {['Kelingking Cliff', 'Tirta Empul', 'Monkey Forest', 'Tanah Lot', 'Amed', 'Kintamani', 'Nusa Penida', 'Ubud'].map(tag => (
                 <button 
                   key={tag} 
-                  className="px-4 py-2 rounded-full bg-amber-50 text-amber-800 text-xs font-semibold border border-amber-100 hover:bg-amber-100 appearance-none outline-none cursor-pointer pointer-events-auto"
-                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); setSearchQuery(tag); }}
+                  className="px-4 py-2 rounded-full bg-amber-50 text-amber-800 text-xs font-semibold border border-amber-100 hover:bg-amber-100 appearance-none outline-none cursor-pointer pointer-events-auto active:scale-95 transition-transform"
+                  onPointerDown={(e) => { e.preventDefault(); e.stopPropagation(); setSearchQuery(tag); }}
                 >
                   {tag}
                 </button>

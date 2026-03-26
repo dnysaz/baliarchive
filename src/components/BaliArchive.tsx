@@ -89,23 +89,23 @@ const DollarIcon = ({ size = 11 }: { size?: number }) => (
 // --- Action Buttons ---
 const ActionButton = ({ onClick, label, icon }: { onClick: () => void; label: string; icon: React.ReactNode }) => (
   <button
-    onClick={(e) => { e.stopPropagation(); onClick(); }}
+    onPointerDown={(e) => { e.stopPropagation(); onClick(); }}
     className="flex flex-col items-center gap-1 cursor-pointer appearance-none border-none bg-transparent outline-none p-0 active:scale-95 transition-transform select-none"
     style={{ WebkitTapHighlightColor: 'transparent' }}
   >
-    <div className="w-11 h-11 rounded-full bg-white/15 backdrop-blur-sm flex items-center justify-center">{icon}</div>
-    <span className="text-[10px] font-bold text-white/70">{label}</span>
+    <div className="w-11 h-11 rounded-full bg-white/15 backdrop-blur-sm flex items-center justify-center pointer-events-none">{icon}</div>
+    <span className="text-[10px] font-bold text-white/70 pointer-events-none">{label}</span>
   </button>
 );
 
 const DesktopActionButton = ({ onClick, label, icon }: { onClick: () => void; label: string; icon: React.ReactNode }) => (
   <button
-    onClick={(e) => { e.stopPropagation(); onClick(); }}
+    onPointerDown={(e) => { e.stopPropagation(); onClick(); }}
     className="flex flex-col items-center gap-1.5 cursor-pointer appearance-none border-none bg-transparent outline-none p-0 active:scale-95 transition-transform select-none"
     style={{ WebkitTapHighlightColor: 'transparent' }}
   >
-    <div className="w-14 h-14 rounded-full border border-white/20 bg-white/10 hover:bg-white/20 backdrop-blur-md flex items-center justify-center transition-all duration-200">{icon}</div>
-    <span className="text-[9px] font-bold text-white/50 uppercase tracking-tight">{label}</span>
+    <div className="w-14 h-14 rounded-full border border-white/20 bg-white/10 hover:bg-white/20 backdrop-blur-md flex items-center justify-center transition-all duration-200 pointer-events-none">{icon}</div>
+    <span className="text-[9px] font-bold text-white/50 uppercase tracking-tight pointer-events-none">{label}</span>
   </button>
 );
 
@@ -141,11 +141,15 @@ const Card = ({
   // Double-tap detection — only on the image/carousel area, skip buttons
   const handleTap = (e: React.MouseEvent | React.TouchEvent) => {
     const target = e.target as HTMLElement;
-    if (target.closest('button') || target.closest('a')) return;
+    // Ensure we don't trigger read more on buttons or interactive elements
+    if (target.closest('button') || target.closest('a') || target.closest('.no-tap')) return;
+    
     const now = Date.now();
-    if (now - lastTap.current < 350 && lastTap.current !== 0) {
+    const DOUBLE_TAP_DELAY = 300;
+    
+    if (now - lastTap.current < DOUBLE_TAP_DELAY) {
       onRead(item);
-      lastTap.current = 0;
+      lastTap.current = 0; // Reset after successful double tap
     } else {
       lastTap.current = now;
     }
@@ -321,19 +325,18 @@ export default function BaliArchive({ initialData }: BaliArchiveProps) {
     setIsSavedPageOpen(false);
   };
 
-  const categories = ['All', 'Nature', 'Culture', 'Adventure', 'Wellness'];
-  const kabupatens = [
-    { name: 'All', count: initialData.length },
-    { name: 'Gianyar', count: initialData.filter((i) => i.kabupaten === 'Gianyar').length },
-    { name: 'Badung', count: initialData.filter((i) => i.kabupaten === 'Badung').length },
-    { name: 'Bangli', count: initialData.filter((i) => i.kabupaten === 'Bangli').length },
-    { name: 'Buleleng', count: initialData.filter((i) => i.kabupaten === 'Buleleng').length },
-    { name: 'Jembrana', count: initialData.filter((i) => i.kabupaten === 'Jembrana').length },
-    { name: 'Karangasem', count: initialData.filter((i) => i.kabupaten === 'Karangasem').length },
-    { name: 'Klungkung', count: initialData.filter((i) => i.kabupaten === 'Klungkung').length },
-    { name: 'Tabanan', count: initialData.filter((i) => i.kabupaten === 'Tabanan').length },
-    { name: 'Denpasar', count: initialData.filter((i) => i.kabupaten === 'Denpasar').length },
-  ];
+  const categories = useMemo(() => ['All', 'Nature', 'Culture', 'Adventure', 'Wellness'], []);
+  const kabupatens = useMemo(() => {
+    const counts: Record<string, number> = {};
+    initialData.forEach(post => {
+      counts[post.kabupaten] = (counts[post.kabupaten] || 0) + 1;
+    });
+    
+    const list = Object.entries(counts).map(([name, count]) => ({ name, count }));
+    list.sort((a, b) => a.name.localeCompare(b.name));
+    
+    return [{ name: 'All', count: initialData.length }, ...list];
+  }, [initialData]);
 
   const savedPosts = useMemo(() => initialData.filter((item) => savedIds.has(item.id)), [initialData, savedIds]);
 
@@ -396,24 +399,24 @@ export default function BaliArchive({ initialData }: BaliArchiveProps) {
         <div className="flex items-center justify-between gap-2">
           <button
             className="flex items-center gap-2 h-10 px-3 rounded-full border border-white/20 bg-black/40 backdrop-blur-md flex-1 min-w-0 lg:flex-none lg:w-64 appearance-none outline-none text-left cursor-pointer"
-            onClick={() => setIsSearchOpen(true)}
+            onPointerDown={() => setIsSearchOpen(true)}
           >
             <SearchIcon />
-            <span className="text-[11px] font-semibold text-white/80 truncate">Search destinations…</span>
+            <span className="text-[11px] font-semibold text-white/80 truncate pointer-events-none">Search destinations…</span>
           </button>
 
           <div className="flex items-center gap-2 shrink-0">
             <button
               className="w-10 h-10 rounded-full border border-white/20 bg-black/40 backdrop-blur-md flex items-center justify-center appearance-none outline-none cursor-pointer active:scale-95 transition-transform"
-              onClick={() => setIsSavedPageOpen(true)}
+              onPointerDown={() => setIsSavedPageOpen(true)}
             >
               <SaveIcon saved={false} size={18} />
             </button>
             <button
               className="flex items-center gap-1.5 h-10 px-4 rounded-full border border-white/20 bg-black/40 backdrop-blur-md appearance-none outline-none cursor-pointer active:scale-95 transition-transform"
-              onClick={() => setIsKabDrawerOpen(true)}
+              onPointerDown={() => setIsKabDrawerOpen(true)}
             >
-              <span className="text-[11px] font-bold text-white tracking-wide">{activeKab}</span>
+              <span className="text-[11px] font-bold text-white tracking-wide pointer-events-none">{activeKab}</span>
               <ChevronDownIcon />
             </button>
           </div>
@@ -424,46 +427,17 @@ export default function BaliArchive({ initialData }: BaliArchiveProps) {
           {categories.map((cat) => (
             <button
               key={cat}
-              onClick={() => setActiveCategory(cat)}
+              onPointerDown={() => setActiveCategory(cat)}
               className={`px-5 py-2 rounded-full text-[10px] font-bold uppercase tracking-wider transition-all duration-200 border appearance-none outline-none shrink-0 cursor-pointer active:scale-95 ${
                 activeCategory === cat
                   ? 'bg-white text-black border-white'
                   : 'bg-black/40 text-white/70 border-white/15 backdrop-blur-md'
               }`}
             >
-              {cat}
+              <span className="pointer-events-none">{cat}</span>
             </button>
           ))}
         </div>
-      </div>
-
-      {/* ── DESKTOP LEFT SIDEBAR (Kabupaten) ── */}
-      <div
-        className={`hidden xl:flex flex-col gap-1 absolute top-0 bottom-0 left-[max(16px,calc(50%-336px-200px))] w-48 py-20 z-[100] transition-all duration-300 ${
-          anyOverlayOpen ? 'opacity-0 -translate-x-6 pointer-events-none' : ''
-        }`}
-      >
-        <p className="text-[9px] font-extrabold tracking-widest uppercase text-amber-500 mb-4 px-3">Regencies</p>
-        {kabupatens.map((kab) => (
-          <button
-            key={kab.name}
-            onClick={() => setActiveKab(kab.name)}
-            className={`flex items-center justify-between px-3 py-2.5 rounded-xl transition-all duration-200 group appearance-none border-none outline-none cursor-pointer text-left ${
-              activeKab === kab.name
-                ? 'bg-white/12 text-white'
-                : 'text-white/35 hover:text-white/70 hover:bg-white/6'
-            }`}
-          >
-            <span className="text-[11px] font-bold tracking-tight">{kab.name}</span>
-            <span
-              className={`text-[9px] font-bold px-1.5 py-0.5 rounded-md ${
-                activeKab === kab.name ? 'bg-amber-500 text-black' : 'bg-white/6 text-white/20'
-              }`}
-            >
-              {kab.count}
-            </span>
-          </button>
-        ))}
       </div>
 
       {/* ── OVERLAYS ── */}

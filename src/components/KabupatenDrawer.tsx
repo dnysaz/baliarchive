@@ -31,8 +31,8 @@ export default function KabupatenDrawer({ isOpen, onClose, activeKab, setActiveK
           <h2 className="font-cormorant text-2xl font-bold text-zinc-900 leading-none">8 Regencies</h2>
         </div>
         <button 
-          className="w-10 h-10 rounded-full bg-black/5 flex items-center justify-center text-gray-400 appearance-none outline-none cursor-pointer pointer-events-auto"
-          onClick={(e) => { e.preventDefault(); e.stopPropagation(); onClose(); }}
+          className="w-10 h-10 rounded-full bg-black/5 flex items-center justify-center text-gray-400 appearance-none outline-none cursor-pointer pointer-events-auto active:scale-95 transition-transform"
+          onPointerDown={(e) => { e.preventDefault(); e.stopPropagation(); onClose(); }}
         >
           ✕
         </button>
@@ -41,8 +41,8 @@ export default function KabupatenDrawer({ isOpen, onClose, activeKab, setActiveK
         {kabupatens.map(kab => (
           <button 
             key={kab.name}
-            className={`flex items-center justify-between px-6 py-4 w-full text-left appearance-none outline-none transition-colors cursor-pointer pointer-events-auto ${activeKab === kab.name ? 'bg-amber-50 border-l-4 border-amber-600' : 'hover:bg-zinc-50'}`}
-            onClick={(e) => { e.preventDefault(); e.stopPropagation(); setActiveKab(kab.name); onClose(); }}
+            className={`flex items-center justify-between px-6 py-4 w-full text-left appearance-none outline-none transition-colors cursor-pointer pointer-events-auto active:bg-amber-50/50 ${activeKab === kab.name ? 'bg-amber-50 border-l-4 border-amber-600' : 'hover:bg-zinc-50'}`}
+            onPointerDown={(e) => { e.preventDefault(); e.stopPropagation(); setActiveKab(kab.name); onClose(); }}
           >
             <div className="flex items-center gap-4 pointer-events-none">
               <div className="p-2.5 bg-amber-100/50 rounded-xl"><PuraIcon /></div>
