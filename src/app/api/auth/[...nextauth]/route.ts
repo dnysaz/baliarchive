@@ -1,7 +1,7 @@
 import NextAuth from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
 import prisma from '@/lib/prisma';
-import bcrypt from 'bcryptjs';
+import bcrypt from 'bcrypt';
 
 export const authOptions = {
   providers: [
@@ -20,30 +20,22 @@ export const authOptions = {
         const searchEmail = credentials.email.toLowerCase().trim();
         const inputPassword = credentials.password.trim();
         
-        // Use a safer way to access the model if TypeScript is complaining
-        const db = prisma as any;
-        
-        // Explicitly check for 'user' or 'User' model (Prisma can be inconsistent with case in runtime)
-        const userModel = db.user || db.User;
-        
-        if (!userModel) {
-          console.error('❌ CRITICAL ERROR: Model "user" not found on Prisma client.');
-          console.log('Available models in this process:', Object.keys(db).filter(k => !k.startsWith('_')));
-          console.log('PLEASE RESTART YOUR DEV SERVER (npm run dev)');
-          return null;
-        }
-        
-        const user = await userModel.findUnique({
+        // Find user by email (using type cast to bypass linter if client generation is out of sync)
+        const user = await (prisma as any).user.findUnique({
           where: { email: searchEmail }
         });
 
         if (!user) {
+          console.log('❌ Auth failure: User not found');
           return null;
         }
 
         const isPasswordValid = await bcrypt.compare(inputPassword, user.password);
 
-        if (!isPasswordValid) return null;
+        if (!isPasswordValid) {
+          console.log('❌ Auth failure: Invalid password');
+          return null;
+        }
 
         return {
           id: user.id.toString(),

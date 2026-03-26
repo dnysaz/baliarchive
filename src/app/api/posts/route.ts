@@ -23,31 +23,39 @@ export async function POST(request: Request) {
     const { 
       locationId, province, hashtagId, title, tagline, 
       likes, bestTime, howToGet, cost, body: contentBody, 
-      venue, images 
+      venue, images, guidePdfUrl, guidePrice 
     } = body;
 
     // Get names for backward compatibility fields if needed
     const location = await (prisma as any).location.findUnique({ where: { id: locationId } });
     const hashtag = await (prisma as any).hashtag.findUnique({ where: { id: hashtagId } });
+    const imageUrls = (Array.isArray(images) ? images : []).filter(
+      (u: unknown): u is string => typeof u === 'string' && u.trim().length > 0
+    );
 
     const post = await prisma.post.create({
       data: {
-        locationId,
         kabupaten: location?.name || "",
         province: province || "Bali",
-        hashtagId,
         category: hashtag?.name || "",
         title,
         tagline,
-        likes: likes || "0",
+        likes: parseInt(likes) || 0,
+        saves: 0,
         bestTime,
         howToGet,
         cost,
         body: contentBody,
         venue,
-        images: {
-          create: images.map((url: string) => ({ url }))
-        }
+        // Store guide fields if provided. Convert '' to null so the UI can use truthy checks.
+        guidePdfUrl: guidePdfUrl || null,
+        guidePrice: guidePrice || null,
+        // Use relation connect to avoid runtime mismatch with scalar fields.
+        location: { connect: { id: locationId } },
+        hashtag: { connect: { id: hashtagId } },
+        images: imageUrls.length > 0
+          ? { create: imageUrls.map((url: string) => ({ url })) }
+          : undefined
       } as any,
       include: { images: true, location: true, hashtag: true } as any
     });

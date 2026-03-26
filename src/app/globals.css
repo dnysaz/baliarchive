@@ -117,8 +117,8 @@ body {
 .kab-card:active { background: #fef3c7; }
 .kab-card.active-kab { border-left: 3px solid #d97706; background: #fffbeb; }
 
-#sheet-content p { margin-bottom: 1rem; font-size: 15px; line-height: 1.8; color: #374151; }
-#sheet-content h3 { font-family: 'Cormorant Garamond', serif; font-size: 22px; font-weight: 700; color: #111827; margin: 1.75rem 0 .5rem; }
+#sheet-content p { margin-bottom: 1rem; font-size: 16px; line-height: 1.8; color: #374151; }
+#sheet-content h3 { font-family: var(--font-sans); font-size: 20px; font-weight: 700; color: #111827; margin: 2rem 0 0.75rem; }
 #sheet-content em { font-style: italic; color: #6b7280; }
 
 @keyframes guide-bounce { 0%, 100% { transform: translateY(0) } 50% { transform: translateY(-8px) } }

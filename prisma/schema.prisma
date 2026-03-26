@@ -42,12 +42,15 @@ model Post {
   hashtagId  Int
   title      String
   tagline    String
-  likes      String   @default("0")
+  likes      Int      @default(0)
+  saves      Int      @default(0)
   bestTime   String
   howToGet   String
   cost       String
   body       String
   venue      String?
+  guidePdfUrl String?
+  guidePrice  String?
   images     Image[]
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt

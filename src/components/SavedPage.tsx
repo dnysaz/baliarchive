@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import type { Prisma } from '@prisma/client';
 
 const SaveIcon = ({ saved, size = 20 }: { saved: boolean, size?: number }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill={saved ? '#f59e0b' : 'none'} stroke={saved ? '#f59e0b' : 'currentColor'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -8,26 +9,7 @@ const SaveIcon = ({ saved, size = 20 }: { saved: boolean, size?: number }) => (
   </svg>
 );
 
-interface Image {
-  id: number;
-  url: string;
-}
-
-interface Post {
-  id: number;
-  kabupaten: string;
-  province: string;
-  category: string;
-  title: string;
-  tagline: string;
-  likes: string;
-  bestTime: string;
-  howToGet: string;
-  cost: string;
-  body: string;
-  venue?: string | null;
-  images: Image[];
-}
+type Post = Prisma.PostGetPayload<{ include: { images: true } }>;
 
 interface SavedPageProps {
   isOpen: boolean;
@@ -38,7 +20,7 @@ interface SavedPageProps {
 
 export default function SavedPage({ isOpen, onClose, savedPosts, onOpenPost }: SavedPageProps) {
   return (
-    <div className={`fixed inset-0 z-[300] bg-white text-black flex flex-col transition-transform duration-500 ease-out ${isOpen ? 'translate-x-0 pointer-events-auto' : 'translate-x-full pointer-events-none'}`}>
+    <div className={`font-sans fixed inset-0 z-[300] bg-white text-black flex flex-col transition-transform duration-500 ease-out ${isOpen ? 'translate-x-0 pointer-events-auto' : 'translate-x-full pointer-events-none'}`}>
       <div className="shrink-0 flex items-center gap-4 px-6 border-b border-black/[.07] pt-[max(20px,env(safe-area-inset-top))] pb-5">
         <button 
           className="w-10 h-10 rounded-full bg-black/5 flex items-center justify-center text-zinc-500 appearance-none outline-none cursor-pointer pointer-events-auto active:scale-95 transition-transform"

@@ -8,14 +8,5 @@ export default async function Home() {
     },
   });
 
-  // Transform data to match the expected format
-  const formattedPosts = posts.map((post: any) => ({
-    ...post,
-    images: post.images.map((img: any) => ({
-      id: img.id,
-      url: img.url,
-    })),
-  }));
-
-  return <BaliArchive initialData={formattedPosts} />;
+  return <BaliArchive initialData={posts} />;
 }
