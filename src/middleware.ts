@@ -62,5 +62,7 @@ export const config = {
     "/api/locations/:path*",
     "/api/hashtags",
     "/api/hashtags/:path*",
+    // Upload endpoint is admin-only — requires authentication
+    "/api/upload",
   ],
 };

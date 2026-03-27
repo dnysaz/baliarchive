@@ -3,6 +3,18 @@ import { writeFile, mkdir } from 'fs/promises';
 import { join } from 'path';
 import { v4 as uuidv4 } from 'uuid';
 
+// Allowed MIME types for upload (images only + PDF for guide files)
+const ALLOWED_MIME_TYPES = new Set([
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+  'image/gif',
+  'application/pdf',
+]);
+
+// Max file size: 10MB
+const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024;
+
 export async function POST(request: Request) {
   try {
     const formData = await request.formData();
@@ -12,11 +24,31 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'No file uploaded' }, { status: 400 });
     }
 
+    // Validate file size
+    if (file.size > MAX_FILE_SIZE_BYTES) {
+      return NextResponse.json({ error: 'File size exceeds the 10MB limit' }, { status: 413 });
+    }
+
+    // Validate MIME type against whitelist
+    if (!ALLOWED_MIME_TYPES.has(file.type)) {
+      return NextResponse.json(
+        { error: 'Invalid file type. Only images (JPEG, PNG, WebP, GIF) and PDF are allowed.' },
+        { status: 415 }
+      );
+    }
+
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
 
-    // Create unique filename
-    const fileExtension = file.name.split('.').pop();
+    // Create a safe filename using UUID + original extension from MIME type
+    const MIME_TO_EXT: Record<string, string> = {
+      'image/jpeg': 'jpg',
+      'image/png': 'png',
+      'image/webp': 'webp',
+      'image/gif': 'gif',
+      'application/pdf': 'pdf',
+    };
+    const fileExtension = MIME_TO_EXT[file.type] || 'blob';
     const fileName = `${uuidv4()}.${fileExtension}`;
     const uploadDir = join(process.cwd(), 'public/uploads');
     const path = join(uploadDir, fileName);
