@@ -24,19 +24,64 @@ const SidebarItem = ({ href, icon, label, active }: { href: string; icon: React.
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { data: session } = useSession();
+  const [mounted, setMounted] = React.useState(false);
+  const [isMobile, setIsMobile] = React.useState(false);
+
+  React.useEffect(() => {
+    setMounted(true);
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 1024);
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   if (pathname === '/admin/login') return <>{children}</>;
+
+  // Block access if mobile
+  if (mounted && isMobile) {
+    return (
+      <div className="min-h-screen bg-zinc-900 flex items-center justify-center p-8 text-center font-sans">
+        <div className="max-w-xs w-full animate-in zoom-in-95 duration-500">
+          <div className="w-16 h-16 bg-amber-500 rounded-2xl flex items-center justify-center text-white font-black text-2xl mx-auto mb-8 shadow-xl shadow-amber-500/30">B</div>
+          <h1 className="text-xl font-black text-white leading-tight mb-4 tracking-tight">Desktop Access Required</h1>
+          <p className="text-zinc-400 text-xs font-medium leading-relaxed mb-10 px-4">
+            Bali Archive Dashboard is optimized for larger screens to ensure Content Management precision. 
+            Please log in from a desktop or laptop device.
+          </p>
+          <Link href="/" className="inline-block px-6 py-3 bg-white/10 text-white rounded-xl text-[11px] font-bold hover:bg-white/20 transition-all active:scale-95">
+            Back to Public View
+          </Link>
+          <div className="mt-12 text-[9px] font-black text-zinc-600 uppercase tracking-widest">
+            Bali Archive Dashboard
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-screen bg-zinc-100 text-zinc-800 overflow-hidden font-sans selection:bg-amber-500/30">
       {/* Sidebar */}
       <aside className="w-64 bg-white/80 backdrop-blur-xl border-r border-black/5 flex flex-col shrink-0 h-full overflow-hidden">
         <div className="p-6 border-b border-black/5">
-          <Link href="/admin" className="flex items-center gap-3 group">
-            <div className="w-10 h-10 bg-amber-500 rounded-xl flex items-center justify-center text-white font-bold text-xl shadow-lg shadow-amber-500/30 group-hover:scale-105 transition-transform">W</div>
-            <div>
-              <h1 className="font-bold text-zinc-800 text-base tracking-tight leading-none">Wiki Bali</h1>
-              <p className="text-[10px] font-semibold text-zinc-400 tracking-widest mt-1">Management</p>
+          <Link 
+            href="/admin" 
+            className="flex items-center gap-3 active:scale-95 transition-transform"
+            suppressHydrationWarning
+          >
+            <div 
+              className="w-10 h-10 bg-amber-500 rounded-xl flex items-center justify-center text-white font-black shadow-lg shadow-amber-500/20"
+              suppressHydrationWarning
+            >
+              {mounted ? 'B' : '...'}
+            </div>
+            <div suppressHydrationWarning>
+              <h1 className="font-bold text-zinc-800 text-base tracking-tight leading-none" suppressHydrationWarning>
+                {mounted ? 'Bali Archive' : 'Loading...'}
+              </h1>
+              <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mt-1">Management</p>
             </div>
           </Link>
         </div>

@@ -35,6 +35,13 @@ export default function ArticleSheet({ isOpen, onClose, post }: ArticleSheetProp
     });
   }, [post]);
 
+  // Track views when opened
+  useEffect(() => {
+    if (isOpen && post?.id) {
+      fetch(`/api/posts/${post.id}/view`, { method: 'POST' }).catch(console.error);
+    }
+  }, [isOpen, post?.id]);
+
   const handleLike = async () => {
     if (!post || isLiked) return;
 
@@ -106,8 +113,8 @@ export default function ArticleSheet({ isOpen, onClose, post }: ArticleSheetProp
     const onTouchStart = (e: TouchEvent) => {
       const target = e.target as HTMLElement;
       if (target.closest('#sheet-content')) {
-          isDragging = false;
-          return;
+        isDragging = false;
+        return;
       }
       startY = e.touches[0].clientY;
       isDragging = true;
@@ -128,7 +135,7 @@ export default function ArticleSheet({ isOpen, onClose, post }: ArticleSheetProp
       isDragging = false;
       sheet.style.transition = 'transform 0.5s ease-out';
       const diff = currentY - startY;
-      
+
       if (diff > 100) {
         onClose();
       } else {
@@ -156,42 +163,19 @@ export default function ArticleSheet({ isOpen, onClose, post }: ArticleSheetProp
     <div
       ref={sheetRef}
       style={{ transform: isOpen && post ? 'translateY(0)' : 'translateY(100%)' }}
-      className={`font-sans fixed bottom-0 left-0 right-0 lg:left-1/2 lg:-translate-x-1/2 lg:max-w-2xl z-[300] bg-white text-black rounded-t-[40px] shadow-[0_-10px_60px_rgba(0,0,0,0.25)] max-h-[94vh] flex flex-col overscroll-y-contain transition-transform duration-500 ease-out ${
-        isOpen && post ? 'pointer-events-auto' : 'pointer-events-none'
-      }`}
+      className={`font-sans fixed bottom-0 left-0 right-0 lg:left-1/2 lg:-translate-x-1/2 lg:max-w-2xl z-[300] bg-white text-black rounded-t-[32px] shadow-[0_-10px_60px_rgba(0,0,0,0.25)] max-h-[94vh] flex flex-col overscroll-y-contain transition-transform duration-500 ease-out ${isOpen && post ? 'pointer-events-auto' : 'pointer-events-none'
+        }`}
     >
       {/* Drag handle */}
-      <div className="w-14 h-1.5 bg-zinc-200 rounded-full mx-auto mt-4 mb-2 shrink-0 cursor-grab" />
+      <div className="w-12 h-1 bg-zinc-200 rounded-full mx-auto mt-4 mb-1 shrink-0 cursor-grab flex-shrink-0" />
 
       {/* Header */}
-      <div className="flex items-center justify-between px-6 py-4 border-b border-black/[.05] shrink-0">
-        <div className="flex items-center gap-4">
-          <div className="flex flex-col">
-            <span className="text-[10px] font-bold  tracking-[0.2em] text-amber-600 mb-0.5">BaliArchive Guide</span>
-            <div className="flex items-center gap-3">
-               <button 
-                onClick={handleLike}
-                className={`flex items-center gap-1.5 transition-all active:scale-90 ${isLiked ? 'text-red-500' : 'text-zinc-400 hover:text-red-500'}`}
-               >
-                 <svg className={`w-5 h-5 ${isLiked ? 'fill-current' : 'fill-none'}`} stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                   <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l8.84-8.84 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
-                 </svg>
-                 <span className="text-xs font-bold tracking-tighter">{likesCount}</span>
-               </button>
-               <button 
-                onClick={handleSave}
-                className={`transition-all active:scale-90 ${isSaved ? 'text-amber-500' : 'text-zinc-400 hover:text-amber-500'}`}
-               >
-                 <svg className={`w-5 h-5 ${isSaved ? 'fill-current' : 'fill-none'}`} stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                   <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
-                 </svg>
-               </button>
-            </div>
-          </div>
-        </div>
-        <button
-          className="w-10 h-10 rounded-full bg-black/5 flex items-center justify-center text-zinc-500 appearance-none outline-none cursor-pointer active:scale-90 transition-transform hover:bg-black/10"
-          onClick={onClose}
+      <div className="flex items-center justify-between px-6 py-3 shrink-0 flex-shrink-0">
+        <span className="text-[8px] font-black tracking-[0.15em] text-zinc-400 normal-case">BaliArchive Guide</span>
+        <button 
+          type="button"
+          className="w-10 h-10 rounded-full bg-zinc-100 flex items-center justify-center text-zinc-600 hover:bg-zinc-200 hover:text-zinc-900 active:scale-95 transition-all outline-none cursor-pointer"
+          onClick={(e) => { e.preventDefault(); e.stopPropagation(); onClose(); }}
         >
           <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
         </button>
@@ -199,72 +183,103 @@ export default function ArticleSheet({ isOpen, onClose, post }: ArticleSheetProp
 
       {/* Content — only render when post exists */}
       {post && (
-        <div id="sheet-content" className="flex-1 overflow-y-auto px-8 pb-32 pt-8 lg:px-12 scroll-smooth">
-          <div className="mb-10">
-            <div className="flex items-center gap-2 mb-4">
-              <span className="px-2.5 py-1 bg-amber-100 text-amber-700 text-[10px] font-black  tracking-wider rounded-md">
+        <div id="sheet-content" className="flex-1 min-h-0 overflow-y-auto px-6 pb-20 pt-1 lg:px-10 scroll-smooth">
+          <div className="mb-7">
+            <div className="flex items-center gap-1.5 mb-3.5 flex-wrap">
+              <span className="text-[12px] font-black text-amber-600 tracking-tighter normal-case">
                 {post.kabupaten}
               </span>
-              <span className="w-1 h-1 bg-zinc-300 rounded-full" />
-              <span className="text-[10px] font-bold text-zinc-400  tracking-widest">
-                {post.category}
-              </span>
+              {(post as any).hashtags?.map((hash: any, i: number) => (
+                <React.Fragment key={hash.id || i}>
+                  <span className="w-0.5 h-0.5 bg-zinc-200 rounded-full" />
+                  <span className="text-[12px] font-bold text-zinc-400 tracking-tighter normal-case">
+                    #{hash.name}
+                  </span>
+                </React.Fragment>
+              ))}
             </div>
-            <h1 className="text-2xl md:text-3xl font-black leading-[1.1] text-zinc-900 tracking-tight mb-4">
+            <h1 className="text-xl md:text-2xl font-black leading-[1.05] text-zinc-900 tracking-tight mb-3.5">
               {post.title}
             </h1>
-            <p className="text-lg font-medium text-zinc-500 leading-relaxed italic">
+            <div className="h-0.5 w-6 bg-amber-500/20 rounded-full mb-3.5" />
+            <p className="text-xs md:text-sm font-medium text-zinc-500 leading-relaxed italic">
               &ldquo;{post.tagline}&rdquo;
             </p>
           </div>
 
-          <div className="grid grid-cols-2 gap-4 mb-12">
-            <div className="bg-zinc-50/80 border border-black/[0.03] p-5 rounded-3xl group hover:bg-white hover:shadow-xl hover:shadow-black/[0.02] transition-all duration-500">
-              <div className="w-10 h-10 bg-white rounded-2xl flex items-center justify-center mb-4 shadow-sm group-hover:scale-110 transition-transform">
-                <svg className="w-5 h-5 text-amber-500" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-              </div>
-              <p className="text-[10px] font-black text-zinc-400  tracking-widest mb-1">Best Time</p>
-              <p className="text-sm font-bold text-zinc-800">{post.bestTime}</p>
+          <div className="grid grid-cols-2 gap-2 mb-7">
+            <div className="bg-zinc-50/50 px-4 py-3 rounded-[16px] border border-black/[0.01]">
+              <p className="text-[8px] font-black text-zinc-400 tracking-tight mb-0.5 normal-case">Best time</p>
+              <p className="text-[8px] font-medium text-zinc-800 leading-tight">{post.bestTime}</p>
             </div>
-            <div className="bg-zinc-50/80 border border-black/[0.03] p-5 rounded-3xl group hover:bg-white hover:shadow-xl hover:shadow-black/[0.02] transition-all duration-500">
-              <div className="w-10 h-10 bg-white rounded-2xl flex items-center justify-center mb-4 shadow-sm group-hover:scale-110 transition-transform">
-                <span className="text-emerald-500 font-bold text-lg">Rp</span>
-              </div>
-              <p className="text-[10px] font-black text-zinc-400  tracking-widest mb-1">Entrance Cost</p>
-              <p className="text-sm font-bold text-zinc-800">{post.cost}</p>
+            <div className="bg-zinc-50/50 px-4 py-3 rounded-[16px] border border-black/[0.01]">
+              <p className="text-[8px] font-black text-zinc-400 tracking-tight mb-0.5 normal-case">Entrance</p>
+              <p className="text-[8px] font-medium text-zinc-800 leading-tight">{post.cost}</p>
             </div>
-            <div className="bg-zinc-50/80 border border-black/[0.03] p-6 rounded-3xl col-span-2 group hover:bg-white hover:shadow-xl hover:shadow-black/[0.02] transition-all duration-500">
-              <div className="flex items-start gap-4">
-                <div className="w-10 h-10 bg-white rounded-2xl flex items-center justify-center shrink-0 shadow-sm group-hover:scale-110 transition-transform">
-                  <svg className="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
-                </div>
-                <div>
-                  <p className="text-[10px] font-black text-zinc-400  tracking-widest mb-1">How to Get There</p>
-                  <p className="text-sm font-bold text-zinc-800 leading-relaxed">{post.howToGet}</p>
-                </div>
-              </div>
+            <div className="col-span-2 bg-zinc-50/50 px-4 py-3 rounded-[16px] border border-black/[0.01]">
+              <p className="text-[8px] font-black text-zinc-400 tracking-tight mb-0.5 normal-case">Access</p>
+              <p className="text-[8px] font-medium text-zinc-800 leading-normal">{post.howToGet}</p>
             </div>
           </div>
 
           <div
-            className="prose prose-zinc max-w-none prose-p:text-zinc-600 prose-p:leading-relaxed prose-p:text-base prose-headings:text-zinc-900 prose-headings:font-black prose-img:rounded-3xl"
-            dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(post.body || '') }}
+            className="prose prose-zinc max-w-none prose-p:text-zinc-600 prose-p:leading-relaxed prose-p:text-[11px] prose-headings:text-zinc-900 prose-headings:font-black prose-img:rounded-lg prose-a:text-blue-600 prose-a:no-underline hover:prose-a:underline prose-blockquote:border-l-4 prose-blockquote:border-amber-500/20 prose-blockquote:bg-zinc-50/50 prose-blockquote:px-4 prose-blockquote:py-1 prose-blockquote:rounded-r-lg prose-blockquote:italic"
+            dangerouslySetInnerHTML={{
+              __html: DOMPurify.sanitize(post.body || '')
+            }}
           />
 
           {guidePdfUrl && (
-            <div className="mt-16 bg-zinc-950 text-white rounded-[40px] p-10 relative overflow-hidden group">
-              <div className="absolute top-0 right-0 w-64 h-64 bg-amber-500/10 rounded-full blur-3xl -mr-32 -mt-32 group-hover:bg-amber-500/20 transition-all duration-700" />
-              <div className="relative z-10">
-                <h3 className="text-2xl font-black mb-3 text-white tracking-tight leading-tight">
-                  Unlock the Full <br/><span className="text-amber-400">Bali Insider&apos;s Experience</span>
-                </h3>
-                <p className="text-sm text-zinc-400 leading-relaxed mb-8 max-w-[280px]">
-                  Detailed routes, cultural etiquette, and hidden gems curated by local experts.
-                </p>
-                <a href={guidePdfUrl} download target="_blank" rel="noopener noreferrer" className="w-full block text-center py-4 bg-amber-500 rounded-2xl text-sm font-black text-zinc-950 hover:bg-amber-400 active:scale-95 transition-all cursor-pointer shadow-2xl shadow-amber-500/20">
-                  DOWNLOAD GUIDE — Rp. {post.guidePrice}
-                </a>
+            <div className="mt-12 bg-amber-50/30 rounded-[28px] p-8 border border-amber-200/50 relative overflow-hidden">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 relative z-10">
+                <div className="flex-1">
+                  <h3 className="text-base font-black text-zinc-900 leading-tight mb-1.5">
+                    Unlock the deep Bali <br className="hidden md:block" /> insider&apos;s experience
+                  </h3>
+                  <p className="text-[10px] text-zinc-600 leading-relaxed max-w-[240px]">
+                    Exclusive routes, local etiquette, and hidden spots curated for the curious traveler.
+                  </p>
+                </div>
+                <div className="shrink-0 flex flex-col items-start md:items-end gap-3">
+                  <div className="text-right hidden md:block">
+                    <p className="text-[9px] font-bold text-zinc-400 mb-0.5">Special Price</p>
+                    <p className="text-sm font-black text-zinc-900 tracking-tighter">Rp {post.guidePrice}</p>
+                  </div>
+                  <a
+                    href={guidePdfUrl}
+                    download
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="px-6 py-3 bg-zinc-900 text-white rounded-xl text-[10px] font-black hover:bg-zinc-800 active:scale-95 transition-all shadow-xl shadow-zinc-900/10 flex items-center gap-2 group"
+                  >
+                    <span>Download the Guide</span>
+                    <svg className="w-3 h-3 text-amber-400 group-hover:translate-y-0.5 transition-transform" fill="none" stroke="currentColor" strokeWidth="3" viewBox="0 0 24 24"><path d="M12 5v14M19 12l-7 7-7-7" /></svg>
+                  </a>
+                  <p className="text-[9px] font-bold text-zinc-400 md:hidden">Price: Rp {post.guidePrice}</p>
+                </div>
               </div>
+            </div>
+          )}
+
+          {(post as any).googleMapsUrl && (
+            <div className="mt-6 bg-blue-50/50 rounded-2xl p-6 border border-blue-100/50 flex flex-col md:flex-row md:items-center justify-between gap-4 transition-colors hover:bg-blue-50">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center text-blue-600 shrink-0">
+                  <svg className="w-5 h-5 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="10" r="3"/><path d="M12 21.7C17.3 17 20 13 20 10a8 8 0 1 0-16 0c0 3 2.7 7 8 11.7z"/></svg>
+                </div>
+                <div>
+                  <h3 className="text-sm font-black text-zinc-900 tracking-tight leading-none mb-1">View Location</h3>
+                  <p className="text-[10px] text-zinc-500 font-medium">Open pinning in Google Maps</p>
+                </div>
+              </div>
+              <a 
+                href={(post as any).googleMapsUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-5 py-2.5 bg-blue-600 text-white rounded-xl text-[10px] font-black hover:bg-blue-700 active:scale-95 transition-all shadow-md shadow-blue-600/20 text-center md:w-auto"
+              >
+                Open Maps
+              </a>
             </div>
           )}
         </div>

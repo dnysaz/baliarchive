@@ -3,7 +3,6 @@
 import React, { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
-
 import ConfirmationModal from '@/components/ConfirmationModal';
 
 export default function AdminLocations() {
@@ -53,9 +52,7 @@ export default function AdminLocations() {
   };
 
   const handleConfirm = () => {
-    if (confirmAction) {
-      confirmAction();
-    }
+    if (confirmAction) confirmAction();
     handleModalClose();
   };
 
@@ -94,10 +91,10 @@ export default function AdminLocations() {
     }
   };
 
-  const deleteLocation = (id: number) => {
+  const deleteLocation = (id: number, name: string) => {
     handleModalOpen(
-      'Confirm Deletion',
-      'Are you sure you want to delete this location? This action cannot be undone and may affect linked posts.',
+      'Delete this Regency?',
+      `Are you sure you want to remove "${name}"? This will affect all associated archival entries.`,
       async () => {
         try {
           const res = await fetch(`/api/locations/${id}`, { method: 'DELETE' });
@@ -110,101 +107,95 @@ export default function AdminLocations() {
   };
 
   if (loading) return (
-    <div className="flex items-center justify-center min-h-[400px]">
-      <div className="flex flex-col items-center gap-3">
+    <div className="flex items-center justify-center min-h-[400px] animate-in fade-in duration-500">
+      <div className="flex flex-col items-center gap-4">
         <div className="w-6 h-6 border-2 border-amber-500 border-t-transparent rounded-full animate-spin"></div>
-        <p className="text-zinc-400 text-xs font-semibold tracking-widest">Mapping Regions</p>
+        <p className="text-zinc-400 text-[10px] font-black tracking-[0.2em] uppercase">Syncing Archive</p>
       </div>
     </div>
   );
 
   return (
-    <div className="max-w-4xl">
-      <div className="mb-12">
-        <h1 className="text-4xl font-bold text-zinc-800 tracking-tight mb-1">Regencies</h1>
-        <p className="text-zinc-400 font-medium">Geospatial directory</p>
+    <div className="max-w-6xl animate-in fade-in duration-700">
+      <div className="mb-12 flex flex-col md:flex-row md:items-end justify-between gap-6">
+        <div>
+          <h1 className="text-4xl font-black text-zinc-900 tracking-tighter">Regency</h1>
+        </div>
+
+        <form onSubmit={createLocation} className="flex gap-2 bg-white p-2 rounded-2xl border border-black/5 shadow-xl shadow-black/5 w-full md:w-auto">
+          <input
+            type="text" value={newName} onChange={(e) => setNewName(e.target.value)}
+            placeholder="Enter regency name..."
+            className="px-5 py-3 text-sm font-bold text-zinc-800 focus:outline-none min-w-[240px]"
+          />
+          <button
+            type="submit"
+            className="px-8 py-3 bg-amber-500 text-white font-black text-xs uppercase tracking-widest hover:bg-amber-600 transition-all active:scale-95 rounded-xl shrink-0"
+          >
+            Add
+          </button>
+        </form>
       </div>
 
-      <ConfirmationModal 
+      <ConfirmationModal
         isOpen={isModalOpen}
         title={modalContent.title}
         message={modalContent.message}
         onConfirm={handleConfirm}
         onCancel={handleModalClose}
-        confirmText="Delete"
-        cancelText="Cancel"
+        confirmText="Remove Forever"
       />
 
-      <div className="bg-white/80 backdrop-blur-xl border border-black/5 rounded-2xl overflow-hidden mb-8 shadow-sm">
-        <div className="p-6 border-b border-black/5">
-          <h2 className="text-sm font-semibold text-zinc-800">Register New Area</h2>
-        </div>
-        <form onSubmit={createLocation} className="p-6 flex gap-4">
-          <input 
-            type="text" value={newName} onChange={(e) => setNewName(e.target.value)}
-            placeholder="e.g. Gianyar"
-            className="flex-1 bg-black/5 border-2 border-transparent rounded-lg px-4 py-3 text-sm text-zinc-800 focus:outline-none focus:border-amber-500/50 focus:bg-white transition-all font-semibold placeholder:text-zinc-400"
-          />
-          <button 
-            type="submit"
-            className="px-8 py-3 bg-amber-500 text-white font-semibold text-sm hover:bg-amber-600 transition-all active:scale-[0.98] rounded-lg shadow-lg shadow-amber-500/30"
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        {locations.map((loc) => (
+          <div
+            key={loc.id}
+            className="group bg-white border border-black/5 p-6 rounded-[32px] hover:shadow-2xl hover:shadow-black/10 transition-all duration-500 relative"
           >
-            Register
-          </button>
-        </form>
-      </div>
+            <div className="flex flex-col h-full">
+              <div className="flex items-start justify-between mb-4">
+                <span className="text-[10px] font-black text-zinc-300 uppercase tracking-widest">#{loc.id}</span>
+                <div className="px-3 py-1 bg-zinc-50 rounded-full text-[10px] font-black text-zinc-400 uppercase tracking-widest">
+                  {loc._count?.posts || 0} Posts
+                </div>
+              </div>
 
-      <div className="bg-white/80 backdrop-blur-xl border border-black/5 rounded-2xl overflow-hidden shadow-sm">
-        <table className="w-full text-left border-collapse">
-          <thead>
-            <tr className="border-b border-black/5">
-              <th className="px-6 py-4 text-xs font-semibold text-zinc-500 tracking-wider">ID</th>
-              <th className="px-6 py-4 text-xs font-semibold text-zinc-500 tracking-wider">Regency Name</th>
-              <th className="px-6 py-4 text-xs font-semibold text-zinc-500 tracking-wider text-right">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-black/5">
-            {locations.map((loc) => (
-              <tr key={loc.id} className="hover:bg-black/[0.02] transition-colors duration-200 group">
-                <td className="px-6 py-4 text-sm font-medium text-zinc-400">#{loc.id}</td>
-                <td className="px-6 py-4">
-                  {editingId === loc.id ? (
-                    <input 
-                      autoFocus
-                      type="text" value={editName} onChange={(e) => setEditName(e.target.value)}
-                      onBlur={() => updateLocation(loc.id)}
-                      onKeyDown={(e) => e.key === 'Enter' && updateLocation(loc.id)}
-                      className="bg-white border border-amber-500 rounded-md px-3 py-2 text-sm text-zinc-800 w-full max-w-xs focus:outline-none font-semibold"
-                    />
-                  ) : (
-                    <span className="text-sm font-semibold text-zinc-800 group-hover:text-amber-600 transition-colors">{loc.name}</span>
-                  )}
-                </td>
-                <td className="px-6 py-4">
-                  <div className="flex justify-end gap-4">
-                    <button 
-                      onClick={() => { setEditingId(loc.id); setEditName(loc.name); }}
-                      className="text-sm font-semibold text-zinc-400 hover:text-zinc-800 transition-colors"
-                    >
-                      Edit
-                    </button>
-                    <button 
-                      onClick={() => deleteLocation(loc.id)}
-                      className="text-sm font-semibold text-zinc-400 hover:text-red-500 transition-colors"
-                    >
-                      Delete
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-            {locations.length === 0 && (
-              <tr>
-                <td colSpan={3} className="px-6 py-20 text-center text-zinc-400 text-sm font-semibold">Map is empty</td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+              {editingId === loc.id ? (
+                <input
+                  autoFocus
+                  type="text" value={editName} onChange={(e) => setEditName(e.target.value)}
+                  onBlur={() => updateLocation(loc.id)}
+                  onKeyDown={(e) => e.key === 'Enter' && updateLocation(loc.id)}
+                  className="bg-zinc-50 border-2 border-amber-500 rounded-xl px-4 py-2 text-sm text-zinc-800 w-full focus:outline-none font-bold"
+                />
+              ) : (
+                <h3 className="text-xl font-black text-zinc-900 tracking-tight group-hover:text-amber-500 transition-colors mb-6">{loc.name}</h3>
+              )}
+
+              <div className="mt-auto flex items-center gap-4 pt-4 border-t border-zinc-50">
+                <button
+                  onClick={() => { setEditingId(loc.id); setEditName(loc.name); }}
+                  className="text-[10px] font-black uppercase tracking-widest text-zinc-400 hover:text-zinc-900 transition-colors"
+                >
+                  Edit
+                </button>
+                <button
+                  onClick={() => deleteLocation(loc.id, loc.name)}
+                  className="text-[10px] font-black uppercase tracking-widest text-zinc-400 hover:text-red-500 transition-colors"
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+          </div>
+        ))}
+
+        {locations.length === 0 && (
+          <div className="col-span-full py-20 bg-zinc-50/50 rounded-[40px] border border-dashed border-zinc-200 flex flex-col items-center justify-center">
+            <p className="text-zinc-400 font-bold italic">No regencies mapped yet</p>
+            <p className="text-[10px] text-zinc-400 uppercase font-black tracking-widest mt-2">Add your first region above</p>
+          </div>
+        )}
       </div>
     </div>
   );

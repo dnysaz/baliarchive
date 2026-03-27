@@ -45,7 +45,7 @@ export default function LoginPage() {
             <div className="w-20 h-20 bg-amber-500 rounded-2xl mx-auto flex items-center justify-center mb-6 shadow-lg shadow-amber-500/30">
               <span className="text-white text-4xl font-bold">W</span>
             </div>
-            <h1 className="text-3xl font-bold text-zinc-800 tracking-tight">Wiki Bali</h1>
+            <h1 className="text-3xl font-bold text-zinc-800 tracking-tight">Bali Archive</h1>
             <p className="text-zinc-400 text-xs mt-2 font-semibold tracking-widest">Security Gateway</p>
           </div>
 
@@ -64,7 +64,7 @@ export default function LoginPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                placeholder="admin@wikibali.com"
+                placeholder="admin@baliarchive.com"
                 className="w-full px-5 py-4 bg-black/5 border-2 border-transparent rounded-xl outline-none focus:border-amber-500/50 focus:bg-white transition-all text-zinc-800 font-semibold placeholder:text-zinc-400"
               />
             </div>
@@ -109,7 +109,7 @@ export default function LoginPage() {
         </div>
         
         <p className="text-center mt-10 text-xs font-semibold text-zinc-400 tracking-widest">
-          Wiki Bali Secure Engine
+          Bali Archive Secure Engine
         </p>
       </div>
     </div>

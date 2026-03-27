@@ -24,7 +24,7 @@ export default function AdminPosts() {
 
   const fetchPosts = async () => {
     try {
-      const res = await fetch('/api/posts');
+      const res = await fetch('/api/posts?admin=true');
       const data = await res.json();
       setPosts(Array.isArray(data) ? data : []);
     } catch (err) {
@@ -73,10 +73,10 @@ export default function AdminPosts() {
   };
 
   if (loading) return (
-    <div className="flex items-center justify-center min-h-[400px]">
-      <div className="flex flex-col items-center gap-3">
+    <div className="flex items-center justify-center min-h-[400px] animate-in fade-in duration-500">
+      <div className="flex flex-col items-center gap-4">
         <div className="w-6 h-6 border-2 border-amber-500 border-t-transparent rounded-full animate-spin"></div>
-        <p className="text-zinc-400 text-xs font-semibold tracking-widest">Syncing Content</p>
+        <p className="text-zinc-400 text-[10px] font-black tracking-[0.2em] uppercase">Syncing Archive</p>
       </div>
     </div>
   );
@@ -116,17 +116,20 @@ export default function AdminPosts() {
               </div>
             )}
             
-            <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent opacity-90 group-hover:opacity-100 transition-opacity duration-500 flex flex-col justify-end p-4">
+            <Link href={`/?post=${post.slug || post.id}`} className="absolute inset-0 z-0 cursor-pointer" />
+            
+            <div className="absolute inset-0 pointer-events-none bg-gradient-to-t from-black/70 via-black/20 to-transparent opacity-90 group-hover:opacity-100 transition-opacity duration-500 flex flex-col justify-end p-4">
               <div className="flex flex-wrap gap-1 mb-2">
-                <span className="px-2 py-0.5 bg-amber-500 text-white text-[9px] font-bold rounded-full shadow-lg">
-                  #{post.hashtag?.name || post.category}
+                <span className="px-2 py-0.5 bg-amber-500 text-white text-[9px] font-bold rounded-full shadow-lg transition-transform active:scale-95">
+                  #{post.hashtags?.[0]?.name || 'Untagged'}
+                  {post.hashtags?.length > 1 && ` +${post.hashtags.length - 1}`}
                 </span>
               </div>
               <h3 className="text-white text-base font-bold leading-tight truncate">{post.title}</h3>
               
-              <div className="flex items-center gap-2 mt-4 translate-y-4 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-300">
+              <div className="pointer-events-auto flex items-center gap-2 mt-4 translate-y-4 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-300">
                 <Link 
-                  href={`/admin/posts/edit/${post.id}`}
+                  href={`/admin/posts/edit/${post.slug || post.id}`}
                   className="flex-1 py-2 bg-white text-zinc-800 text-xs font-semibold text-center hover:bg-amber-500 hover:text-white transition-all rounded-md shadow-lg"
                 >
                   Edit

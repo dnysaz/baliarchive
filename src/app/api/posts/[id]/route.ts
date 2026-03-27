@@ -7,9 +7,10 @@ export async function GET(
 ) {
   const { id } = await params;
   try {
+    const isNum = !isNaN(parseInt(id)) && /^\d+$/.test(id);
     const post = await prisma.post.findUnique({
-      where: { id: parseInt(id) },
-      include: { images: true, location: true, hashtag: true } as any
+      where: isNum ? { id: parseInt(id) } : { slug: id } as any,
+      include: { images: true, location: true, hashtags: true } as any
     });
     if (!post) return NextResponse.json({ error: 'Post not found' }, { status: 404 });
     return NextResponse.json(post);
@@ -26,13 +27,22 @@ export async function PUT(
   try {
     const body = await request.json();
     const { 
-      locationId, province, hashtagId, title, tagline, 
+      locationId, province, hashtagIds, title, tagline, 
       bestTime, howToGet, cost, body: contentBody, 
-      venue, images, guidePdfUrl, guidePrice 
+      venue, images, guidePdfUrl, guidePrice, googleMapsUrl, isDraft 
     } = body;
 
     const location = await (prisma as any).location.findUnique({ where: { id: locationId } });
-    const hashtag = await (prisma as any).hashtag.findUnique({ where: { id: hashtagId } });
+    const validHashtagIds = Array.isArray(hashtagIds) ? hashtagIds.slice(0, 3) : [];
+
+    const isNum = !isNaN(parseInt(id)) && /^\d+$/.test(id);
+    const whereClause = isNum ? { id: parseInt(id) } : { slug: id };
+
+    const existingPost = await prisma.post.findUnique({ where: whereClause as any });
+    if (!existingPost) {
+      return NextResponse.json({ error: 'Post not found' }, { status: 404 });
+    }
+    const actualId = existingPost.id;
 
     // IMPORTANT:
     // Endpoint ini sebelumnya selalu menghapus semua gambar lalu menambah lagi
@@ -44,7 +54,7 @@ export async function PUT(
     );
     const hasNewImages = imageUrls.length > 0;
     if (hasNewImages) {
-      await prisma.image.deleteMany({ where: { postId: parseInt(id) } });
+      await prisma.image.deleteMany({ where: { postId: actualId } });
     } else {
       console.warn('PUT /api/posts/[id]: images empty, keeping existing images', {
         postId: id,
@@ -54,7 +64,6 @@ export async function PUT(
     const updateData: any = {
       kabupaten: location?.name || "",
       province: province || "Bali",
-      category: hashtag?.name || "",
       title,
       tagline,
       bestTime,
@@ -65,10 +74,31 @@ export async function PUT(
       // Store guide fields if provided. Convert '' to null so the UI can use truthy checks.
       guidePdfUrl: guidePdfUrl || null,
       guidePrice: guidePrice || null,
+      googleMapsUrl: googleMapsUrl || null,
+      isDraft: isDraft !== undefined ? isDraft : false,
       // Use relation connect to avoid runtime mismatch with scalar fields.
       location: { connect: { id: locationId } },
-      hashtag: { connect: { id: hashtagId } },
+      hashtags: { 
+        set: [], // Clear old relations
+        connect: validHashtagIds.map((id: number) => ({ id })) 
+      },
     };
+
+    // Auto update slug if title changed, but handle uniqueness simply
+    function generateSlug(text: string) {
+      return text.toString().toLowerCase().trim()
+        .replace(/[^\w\s-]/g, '')
+        .replace(/[\s_-]+/g, '-')
+        .replace(/^-+|-+$/g, '');
+    }
+    if (title && title !== existingPost.title) {
+      let newSlug = generateSlug(title);
+      let found = await prisma.post.findUnique({ where: { slug: newSlug } as any });
+      if (found && found.id !== actualId) {
+         newSlug = `${newSlug}-${Date.now()}`;
+      }
+      updateData.slug = newSlug;
+    }
 
     if (hasNewImages) {
       updateData.images = {
@@ -77,9 +107,9 @@ export async function PUT(
     }
 
     const post = await prisma.post.update({
-      where: { id: parseInt(id) },
+      where: { id: actualId },
       data: updateData as any,
-      include: { images: true, location: true, hashtag: true } as any
+      include: { images: true, location: true, hashtags: true } as any
     });
 
     return NextResponse.json(post);
@@ -98,8 +128,14 @@ export async function DELETE(
 ) {
   const { id } = await params;
   try {
-    await prisma.image.deleteMany({ where: { postId: parseInt(id) } });
-    await prisma.post.delete({ where: { id: parseInt(id) } });
+    const isNum = !isNaN(parseInt(id)) && /^\d+$/.test(id);
+    const whereClause = isNum ? { id: parseInt(id) } : { slug: id };
+    
+    const existingPost = await prisma.post.findUnique({ where: whereClause as any });
+    if (!existingPost) return NextResponse.json({ error: 'Post not found' }, { status: 404 });
+
+    await prisma.image.deleteMany({ where: { postId: existingPost.id } });
+    await prisma.post.delete({ where: { id: existingPost.id } });
     return NextResponse.json({ message: 'Post deleted' });
   } catch (error) {
     return NextResponse.json({ error: 'Failed to delete post' }, { status: 500 });

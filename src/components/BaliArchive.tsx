@@ -6,8 +6,9 @@ import ArticleSheet from './ArticleSheet';
 import KabupatenDrawer from './KabupatenDrawer';
 import SavedPage from './SavedPage';
 import SearchOverlay from './SearchOverlay';
+import ShareSheet from './ShareSheet';
 
-type Post = Prisma.PostGetPayload<{ include: { images: true } }>;
+type Post = Prisma.PostGetPayload<{ include: { images: true, hashtags: true } }>;
 
 interface BaliArchiveProps {
   initialData: Post[];
@@ -21,7 +22,7 @@ const HeartIcon = ({ filled, color, size = 20 }: { filled: boolean; color: strin
 );
 
 const SaveIcon = ({ saved, size = 20 }: { saved: boolean; size?: number }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill={saved ? '#f59e0b' : 'none'} stroke={saved ? '#f59e0b' : 'currentColor'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+  <svg width={size} height={size} viewBox="0 0 24 24" fill={saved ? '#f59e0b' : 'none'} stroke={saved ? '#f59e0b' : 'white'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z" />
   </svg>
 );
@@ -136,13 +137,14 @@ const Card = ({
     }
   };
 
+  const firstHashtag = item.hashtags?.[0]?.name || 'Untagged';
   const catColor =
     ({
       Nature: 'bg-emerald-600',
       Culture: 'bg-amber-600',
       Adventure: 'bg-orange-600',
       Wellness: 'bg-teal-600',
-    } as Record<string, string>)[item.category] || 'bg-zinc-600';
+    } as Record<string, string>)[firstHashtag] || 'bg-zinc-600';
 
   return (
     <div
@@ -189,7 +191,7 @@ const Card = ({
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 mb-2">
                 <span className={`px-2.5 py-1 text-xs font-bold rounded-full text-white ${catColor}`}>
-                  {item.category}
+                  #{firstHashtag}
                 </span>
                 <span className="text-xs font-semibold text-white/70">
                   {item.kabupaten}
@@ -211,7 +213,7 @@ const Card = ({
       </div>
 
       {/* Desktop Action Buttons (Sidebar) - Outside the max-w-2xl container and overflow-hidden */}
-      <div className="hidden lg:flex flex-col gap-5 absolute left-[calc(50%+350px)] top-1/2 -translate-y-1/2 z-50 no-tap">
+      <div className="hidden lg:flex flex-col gap-5 absolute left-[calc(50%+350px)] top-[65%] -translate-y-1/2 z-50 no-tap">
         <DesktopActionButton onClick={() => onLike(item.id)} label={item.likes} icon={<HeartIcon filled={isLiked} color={isLiked ? '#ef4444' : 'white'} size={24} />} />
         <DesktopActionButton onClick={() => onSave(item.id)} label="Save" icon={<SaveIcon saved={isSaved} size={24} />} />
         <DesktopActionButton onClick={() => onRead(item)} label="Read" icon={<ReadIcon size={24} />} />
@@ -233,9 +235,12 @@ export default function BaliArchive({ initialData }: BaliArchiveProps) {
   const [savedPosts, setSavedPosts] = useState<Set<number>>(new Set());
   const [readPosts, setReadPosts] = useState<Set<number>>(new Set());
   const [activeKabupaten, setActiveKabupaten] = useState<string | null>(null);
+  const [isShareOpen, setShareOpen] = useState(false);
+  const [sharePost, setSharePost] = useState<Post | null>(null);
+  const [isNotFoundOpen, setNotFoundOpen] = useState(false);
   const mainRef = useRef<HTMLDivElement>(null);
 
-  // Load state from localStorage
+  // Load state from localStorage and check URL query
   useEffect(() => {
     const liked = localStorage.getItem('likedPosts');
     const saved = localStorage.getItem('savedPosts');
@@ -245,6 +250,25 @@ export default function BaliArchive({ initialData }: BaliArchiveProps) {
       if (saved) setSavedPosts(new Set(JSON.parse(saved)));
       if (read) setReadPosts(new Set(JSON.parse(read)));
     });
+
+    const searchParams = new URL(window.location.href).searchParams;
+    const postSlug = searchParams.get('post');
+    if (postSlug) {
+      const match = initialData.find((p: any) => p.slug === postSlug || p.id.toString() === postSlug);
+      if (match) {
+        setActivePost(match);
+        setSheetOpen(true);
+        queueMicrotask(() => {
+          const element = document.querySelector(`[data-id="${match.id}"]`);
+          if (element) {
+            element.scrollIntoView();
+          }
+        });
+      } else {
+        // If query exists but no match found
+        setNotFoundOpen(true);
+      }
+    }
   }, []);
 
   // --- Handlers ---
@@ -316,13 +340,12 @@ export default function BaliArchive({ initialData }: BaliArchiveProps) {
   };
 
   const handleShare = (post: Post) => {
-    if (navigator.share) {
-      navigator.share({
-        title: post.title,
-        text: post.tagline,
-        url: window.location.href, // Or a specific URL for the post
-      });
-    }
+    setSharePost(post);
+    setShareOpen(true);
+  };
+
+  const handleCloseShare = () => {
+    setShareOpen(false);
   };
 
   const handleOpenSaved = () => setSavedOpen(true);
@@ -431,6 +454,31 @@ export default function BaliArchive({ initialData }: BaliArchiveProps) {
       <KabupatenDrawer isOpen={isDrawerOpen} onClose={handleCloseDrawer} kabupatens={kabupatenList} setActiveKab={handleSelectKabupaten} activeKab={activeKabupaten} />
       <SavedPage isOpen={isSavedOpen} onClose={handleCloseSaved} savedPosts={savedPostsData} onOpenPost={(post) => { handleSelectPost(post); handleCloseSaved(); }} />
       <SearchOverlay isOpen={isSearchOpen} onClose={handleCloseSearch} allPosts={posts} onSelectPost={handleSelectPost} searchQuery={searchQuery} setSearchQuery={setSearchQuery} />
+      <ShareSheet isOpen={isShareOpen} onClose={handleCloseShare} post={sharePost} />
+
+      {/* --- Archive Entry Missing Fallback --- */}
+      {isNotFoundOpen && (
+        <div className="fixed inset-0 z-[500] flex items-center justify-center p-6 bg-black/60 backdrop-blur-md animate-in fade-in duration-500">
+          <div className="bg-white rounded-[32px] p-10 max-w-sm w-full text-center border border-white/20 select-none animate-in zoom-in-95 duration-300">
+            <div className="w-20 h-20 bg-amber-50 rounded-3xl flex items-center justify-center mx-auto mb-6">
+              <svg className="w-10 h-10 text-amber-500" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+            </div>
+            <h2 className="text-xl font-black text-zinc-900 leading-tight mb-3">Archive Entry Missing</h2>
+            <p className="text-[13px] text-zinc-500 font-medium leading-relaxed mb-8">
+              This destination might have been moved, updated, or temporarily removed from our public archive.
+            </p>
+            <button 
+              onClick={() => {
+                setNotFoundOpen(false);
+                window.history.replaceState({}, '', '/');
+              }}
+              className="w-full py-4 bg-zinc-900 text-white rounded-2xl text-xs font-black hover:bg-black active:scale-[0.98] transition-all shadow-xl shadow-black/10"
+            >
+              Explore Other Destinations
+            </button>
+          </div>
+        </div>
+      )}
     </>
   );
 }
