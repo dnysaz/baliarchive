@@ -8,7 +8,7 @@ import SavedPage from './SavedPage';
 import SearchOverlay from './SearchOverlay';
 import ShareSheet from './ShareSheet';
 
-type Post = Prisma.PostGetPayload<{ include: { images: true, hashtags: true } }>;
+type Post = Prisma.PostGetPayload<{ include: { images: true, hashtags: true, location: true } }>;
 
 interface BaliArchiveProps {
   initialData: Post[];
@@ -100,6 +100,10 @@ const Card = ({
   onSave,
   onRead,
   onShare,
+  onFilter,
+  isActive,
+  isMuted,
+  toggleMute,
 }: {
   item: Post;
   isSaved: boolean;
@@ -108,10 +112,67 @@ const Card = ({
   onSave: (id: number) => void;
   onRead: (item: Post) => void;
   onShare: (item: Post) => void;
+  onFilter: (type: 'regency' | 'tag', value: string) => void;
+  isActive: boolean;
+  isMuted: boolean;
+  toggleMute: () => void;
 }) => {
   const [activeSlide, setActiveSlide] = useState(0);
+  const [showControls, setShowControls] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(true);
   const carouselRef = useRef<HTMLDivElement>(null);
+  const videoRefs = useRef<Record<number, HTMLVideoElement | null>>({});
   const lastTap = useRef<number>(0);
+  const controlsTimeout = useRef<NodeJS.Timeout | null>(null);
+
+  const toggleVideo = (idx: number) => {
+    const video = videoRefs.current[idx];
+    if (!video) return;
+    if (video.paused) {
+      video.play().catch(() => {});
+      setIsPlaying(true);
+    } else {
+      video.pause();
+      setIsPlaying(false);
+    }
+    triggerControls();
+  };
+
+  const handleMuteToggle = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    toggleMute();
+    triggerControls();
+  };
+
+  const triggerControls = () => {
+    setShowControls(true);
+    if (controlsTimeout.current) clearTimeout(controlsTimeout.current);
+    controlsTimeout.current = setTimeout(() => setShowControls(false), 2500);
+  };
+
+  // Auto-play/pause and Audio Management
+  useEffect(() => {
+    Object.values(videoRefs.current).forEach((video, idx) => {
+      if (!video) return;
+      
+      const isCurrentSlide = idx === activeSlide;
+      const shouldPlay = isActive && isCurrentSlide;
+      const shouldMute = isMuted || !isActive || !isCurrentSlide;
+
+      // Force update DOM properties for immediate effect
+      video.muted = shouldMute;
+
+      if (shouldPlay) {
+        if (video.paused) {
+          video.play().catch(() => {});
+        }
+      } else {
+        if (!video.paused) {
+          video.pause();
+        }
+      }
+    });
+  }, [isActive, isMuted, activeSlide]);
 
   const handleScroll = () => {
     if (carouselRef.current) {
@@ -125,14 +186,19 @@ const Card = ({
     const target = e.target as HTMLElement;
     // Ensure we don't trigger read more on buttons or interactive elements
     if (target.closest('button') || target.closest('a') || target.closest('.no-tap')) return;
-    
+
     const now = Date.now();
     const DOUBLE_TAP_DELAY = 300;
-    
+
     if (now - lastTap.current < DOUBLE_TAP_DELAY) {
       onRead(item);
-      lastTap.current = 0; // Reset after successful double tap
+      lastTap.current = 0; 
     } else {
+      // SINGLE TAP Logic: Show video controls if current slide is video
+      const currentMedia = item.images[activeSlide] as any;
+      if (currentMedia?.type === 'VIDEO') {
+        triggerControls();
+      }
       lastTap.current = now;
     }
   };
@@ -162,42 +228,96 @@ const Card = ({
           onScroll={handleScroll}
           onClick={handleTap}
         >
-          {item.images.map((img, i) => (
-            <div key={i} className="carousel-slide w-full h-full shrink-0 snap-start relative">
-              <img
-                src={img.url}
-                alt={item.title}
-                className="w-full h-full object-cover select-none pointer-events-none"
-              />
-            </div>
-          ))}
+          {item.images.map((media: any, idx: number) => (
+              <div key={idx} className="flex-shrink-0 w-full h-full snap-center flex items-center justify-center bg-black relative group">
+                {media.type === 'VIDEO' ? (
+                  <>
+                    <video
+                      key={media.url}
+                      ref={(el) => { videoRefs.current[idx] = el; }}
+                      src={media.url}
+                      className="w-full h-full object-contain"
+                      playsInline
+                      autoPlay={isActive && idx === activeSlide}
+                      loop
+                      muted={isMuted || !isActive || idx !== activeSlide}
+                      onPlay={() => setIsPlaying(true)}
+                      onPause={() => setIsPlaying(false)}
+                    />
+                    
+                    {/* Video Controls Overlay */}
+                    <div className={`absolute inset-0 z-10 flex items-center justify-center gap-8 transition-opacity duration-300 pointer-events-none ${showControls ? 'opacity-100' : 'opacity-0'}`}>
+                      <button 
+                        onClick={(e) => { e.stopPropagation(); toggleVideo(idx); }}
+                        className="w-16 h-16 rounded-full bg-black/40 backdrop-blur-md flex items-center justify-center text-white border border-white/20 pointer-events-auto active:scale-90 transition-transform"
+                      >
+                        {isPlaying ? (
+                          <svg width="28" height="28" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+                        ) : (
+                          <svg width="28" height="28" fill="currentColor" viewBox="0 0 24 24" className="ml-1"><path d="M8 5v14l11-7z"/></svg>
+                        )}
+                      </button>
+                      <button 
+                        onClick={handleMuteToggle}
+                        className="w-16 h-16 rounded-full bg-black/40 backdrop-blur-md flex items-center justify-center text-white border border-white/20 pointer-events-auto active:scale-90 transition-transform"
+                      >
+                        {isMuted ? (
+                          <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path d="M11 5L6 9H2v6h4l5 4V5zM23 9l-6 6M17 9l6 6"/></svg>
+                        ) : (
+                          <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path d="M11 5L6 9H2v6h4l5 4V5zM19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
+                        )}
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <img
+                    src={media.url}
+                    alt=""
+                    className="w-full h-full object-contain"
+                    loading="lazy"
+                  />
+                )}
+              </div>
+            ))}
         </div>
 
-        {/* Slide dots */}
-        {item.images.length > 1 && (
-          <div className="absolute top-14 left-1/2 -translate-x-1/2 flex gap-1.5 items-center z-60 pointer-events-none">
-            {item.images.map((_, i) => (
-              <div key={i} className={`dot ${i === activeSlide ? 'active' : ''}`} />
-            ))}
-          </div>
-        )}
+        {/* Content Overlay */}
+        <div className="absolute inset-0 p-6 pb-[calc(24px+env(safe-area-inset-bottom))] text-white z-20 pointer-events-none flex flex-col justify-end">
 
-        {/* Gradient overlay */}
-        <div className="absolute inset-0 bg-linear-to-t from-black/80 via-black/30 to-transparent pointer-events-none z-10" />
-
-        {/* Content */}
-        <div className="absolute bottom-0 left-0 right-0 p-6 pb-[calc(24px+env(safe-area-inset-bottom))] text-white z-20 pointer-events-none">
-          <div className="flex items-end gap-4">
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 mb-2">
-                <span className={`px-2.5 py-1 text-xs font-bold rounded-full text-white ${catColor}`}>
-                  #{firstHashtag}
-                </span>
-                <span className="text-xs font-semibold text-white/70">
-                  {item.kabupaten}
-                </span>
+          {/* Dots — Raised above all text elements, lowered 5px by request */}
+          {item.images.length > 1 && (
+            <div className="absolute left-0 right-0 bottom-[calc(170px+env(safe-area-inset-bottom))] flex justify-center z-30">
+              <div className="flex flex-row gap-1.25">
+                {item.images.map((_: any, i: number) => (
+                  <div key={i} className={`dot ${i === activeSlide ? 'active' : ''}`} />
+                ))}
               </div>
-              <h1 className="text-2xl lg:text-3xl font-bold leading-tight line-clamp-2">{item.title}</h1>
+            </div>
+          )}
+
+          <div className="flex items-end gap-4 relative">
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-1.5 mb-2 pointer-events-auto no-tap flex-wrap">
+                {item.hashtags?.map((hash: any, i: number) => (
+                  <React.Fragment key={hash.id || i}>
+                    {i > 0 && <span className="w-0.5 h-0.5 bg-white/30 rounded-full" />}
+                    <button
+                      onClick={() => onFilter('tag', hash.name)}
+                      className={`text-[11px] font-bold text-white/90 hover:text-white hover:underline transition-all outline-none`}
+                    >
+                      #{hash.name}
+                    </button>
+                  </React.Fragment>
+                ))}
+                <span className="w-0.5 h-0.5 bg-white/30 rounded-full mx-0.5" />
+                <button
+                  onClick={() => item.location?.name && onFilter('regency', item.location.name)}
+                  className="text-[11px] font-bold text-white/60 hover:text-white hover:underline transition-all outline-none"
+                >
+                  {item.location?.name}
+                </button>
+              </div>
+              <h1 className="text-xl lg:text-2xl font-bold leading-tight line-clamp-2">{item.title}</h1>
               <p className="text-sm text-white/80 mt-1.5 line-clamp-2">{item.tagline}</p>
             </div>
 
@@ -238,7 +358,36 @@ export default function BaliArchive({ initialData }: BaliArchiveProps) {
   const [isShareOpen, setShareOpen] = useState(false);
   const [sharePost, setSharePost] = useState<Post | null>(null);
   const [isNotFoundOpen, setNotFoundOpen] = useState(false);
+  const [activeCardId, setActiveCardId] = useState<number | null>(initialData[0]?.id || null);
+  const [visibleCount, setVisibleCount] = useState(10);
+  const [isGlobalMuted, setIsGlobalMuted] = useState(true);
   const mainRef = useRef<HTMLDivElement>(null);
+  const loaderRef = useRef<HTMLDivElement>(null);
+
+  // --- Infinite Scroll Setup ---
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          setVisibleCount(prev => prev + 10);
+        }
+      },
+      { threshold: 0.1 }
+    );
+
+    if (loaderRef.current) observer.observe(loaderRef.current);
+    return () => observer.disconnect();
+  }, [posts]);
+
+  const handleFilter = (type: 'regency' | 'tag', value: string) => {
+    setSheetOpen(false);
+    setSavedOpen(false);
+    setDrawerOpen(false);
+
+    // Both regency and tags now filter via SearchOverlay for grid view consistency
+    setSearchQuery(type === 'tag' ? `#${value}` : value);
+    setSearchOpen(true);
+  };
 
   // Load state from localStorage and check URL query
   useEffect(() => {
@@ -275,7 +424,7 @@ export default function BaliArchive({ initialData }: BaliArchiveProps) {
   const handleLike = async (id: number) => {
     const newLiked = new Set(likedPosts);
     const isLiking = !newLiked.has(id);
-    
+
     if (isLiking) {
       newLiked.add(id);
       try {
@@ -296,7 +445,7 @@ export default function BaliArchive({ initialData }: BaliArchiveProps) {
       // We don't have a decrement action yet, but user asked for +1 on click.
       // Usually like/unlike is handled. For now I'll just follow the "+1" requirement.
     }
-    
+
     setLikedPosts(newLiked);
     localStorage.setItem('likedPosts', JSON.stringify(Array.from(newLiked)));
   };
@@ -365,10 +514,10 @@ export default function BaliArchive({ initialData }: BaliArchiveProps) {
 
   const handleSelectPost = (post: Post) => {
     // If the post is not currently in the filtered list, we need to clear the filter first
-    if (activeKabupaten && post.kabupaten !== activeKabupaten) {
+    if (activeKabupaten && post.location?.name !== activeKabupaten) {
       setActiveKabupaten(null);
     }
-    
+
     // Use setTimeout to wait for the DOM to update if we cleared the filter
     setTimeout(() => {
       const postElement = document.querySelector(`[data-id='${post.id}']`);
@@ -379,14 +528,34 @@ export default function BaliArchive({ initialData }: BaliArchiveProps) {
         });
       }
     }, 50);
-    
+
     setSearchOpen(false);
   };
 
   const filteredPosts = useMemo(() => {
     if (!activeKabupaten) return posts;
-    return posts.filter(p => p.kabupaten === activeKabupaten);
+    return posts.filter(p => p.location?.name === activeKabupaten);
   }, [posts, activeKabupaten]);
+
+  // --- Scroll Tracking with Observer ---
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting && entry.intersectionRatio >= 0.5) {
+            const id = Number(entry.target.getAttribute('data-id'));
+            if (id) setActiveCardId(id);
+          }
+        });
+      },
+      { threshold: [0.1, 0.5, 0.8] } 
+    );
+
+    const cards = document.querySelectorAll('[data-card]');
+    cards.forEach((card) => observer.observe(card));
+
+    return () => observer.disconnect();
+  }, [filteredPosts]);
 
   const savedPostsData = useMemo(() => {
     return posts.filter(p => savedPosts.has(p.id));
@@ -395,13 +564,17 @@ export default function BaliArchive({ initialData }: BaliArchiveProps) {
   const [searchQuery, setSearchQuery] = useState('');
 
   const kabupatenList = useMemo(() => {
-    const allKab = posts.map(p => p.kabupaten);
+    const allKab = posts.map(p => p.location?.name).filter(Boolean) as string[];
     const uniqueKab = ['All', ...Array.from(new Set(allKab))];
     return uniqueKab.map(name => ({
       name,
-      count: name === 'All' ? posts.length : posts.filter(p => p.kabupaten === name).length,
+      count: name === 'All' ? posts.length : posts.filter(p => p.location?.name === name).length,
     }));
   }, [posts]);
+
+  const displayedPosts = useMemo(() => {
+    return filteredPosts.slice(0, visibleCount);
+  }, [filteredPosts, visibleCount]);
 
   return (
     <>
@@ -410,18 +583,29 @@ export default function BaliArchive({ initialData }: BaliArchiveProps) {
         className="w-full h-full overflow-y-scroll snap-y snap-mandatory no-scrollbar bg-black"
         style={{ height: '100dvh' }}
       >
-        {filteredPosts.map(item => (
-          <Card
-            key={item.id}
-            item={item}
-            isSaved={savedPosts.has(item.id)}
-            isLiked={likedPosts.has(item.id)}
-            onLike={handleLike}
-            onSave={handleSave}
-            onRead={handleRead}
-            onShare={handleShare}
-          />
+        {displayedPosts.map(item => (
+          <div key={item.id} data-card data-id={item.id} className="snap-start shrink-0">
+            <Card
+              item={item}
+              isSaved={savedPosts.has(item.id)}
+              isLiked={likedPosts.has(item.id)}
+              onLike={handleLike}
+              onSave={handleSave}
+              onRead={handleRead}
+              onShare={handleShare}
+              onFilter={handleFilter}
+              isActive={activeCardId === item.id}
+              isMuted={isGlobalMuted}
+              toggleMute={() => setIsGlobalMuted(!isGlobalMuted)}
+            />
+          </div>
         ))}
+        {/* Infinite Scroll Loader Trigger */}
+        {visibleCount < filteredPosts.length && (
+          <div ref={loaderRef} className="h-[20vh] w-full flex items-center justify-center snap-start bg-black">
+             <div className="w-8 h-8 rounded-full border-2 border-white/20 border-t-amber-500 animate-spin" />
+          </div>
+        )}
       </main>
 
       {/* --- Header & Overlays --- */}
@@ -450,7 +634,7 @@ export default function BaliArchive({ initialData }: BaliArchiveProps) {
         </div>
       </header>
 
-      <ArticleSheet isOpen={isSheetOpen} onClose={() => setSheetOpen(false)} post={activePost} />
+      <ArticleSheet isOpen={isSheetOpen} onClose={() => setSheetOpen(false)} post={activePost} onFilter={handleFilter} />
       <KabupatenDrawer isOpen={isDrawerOpen} onClose={handleCloseDrawer} kabupatens={kabupatenList} setActiveKab={handleSelectKabupaten} activeKab={activeKabupaten} />
       <SavedPage isOpen={isSavedOpen} onClose={handleCloseSaved} savedPosts={savedPostsData} onOpenPost={(post) => { handleSelectPost(post); handleCloseSaved(); }} />
       <SearchOverlay isOpen={isSearchOpen} onClose={handleCloseSearch} allPosts={posts} onSelectPost={handleSelectPost} searchQuery={searchQuery} setSearchQuery={setSearchQuery} />
@@ -461,13 +645,13 @@ export default function BaliArchive({ initialData }: BaliArchiveProps) {
         <div className="fixed inset-0 z-[500] flex items-center justify-center p-6 bg-black/60 backdrop-blur-md animate-in fade-in duration-500">
           <div className="bg-white rounded-[32px] p-10 max-w-sm w-full text-center border border-white/20 select-none animate-in zoom-in-95 duration-300">
             <div className="w-20 h-20 bg-amber-50 rounded-3xl flex items-center justify-center mx-auto mb-6">
-              <svg className="w-10 h-10 text-amber-500" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+              <svg className="w-10 h-10 text-amber-500" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
             </div>
             <h2 className="text-xl font-black text-zinc-900 leading-tight mb-3">Archive Entry Missing</h2>
             <p className="text-[13px] text-zinc-500 font-medium leading-relaxed mb-8">
               This destination might have been moved, updated, or temporarily removed from our public archive.
             </p>
-            <button 
+            <button
               onClick={() => {
                 setNotFoundOpen(false);
                 window.history.replaceState({}, '', '/');

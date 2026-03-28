@@ -61,7 +61,7 @@ export default function PostForm() {
     cost: '',
     howToGet: '',
     body: '',
-    images: [] as string[],
+    images: [] as { url: string; type: string }[], // Changed to handle both image/video metadata
     guidePdfUrl: '',
     lemonSqueezyUrl: '',
     guidePrice: '',
@@ -175,7 +175,7 @@ export default function PostForm() {
               ...postData,
               locationId: postData.locationId?.toString() || '',
               hashtagIds: postData.hashtags?.length > 0 ? postData.hashtags.map((h: any) => h.id.toString()) : [],
-              images: postData.images?.length > 0 ? postData.images.map((img: any) => img.url) : [],
+              images: postData.images?.length > 0 ? postData.images.map((img: any) => ({ url: img.url, type: img.type || 'IMAGE' })) : [],
               googleMapsUrl: postData.googleMapsUrl || '',
               isDraft: postData.isDraft || false,
             });
@@ -218,42 +218,90 @@ export default function PostForm() {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleMediaUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
 
-    const remainingSlots = 5 - formData.images.length;
-    if (remainingSlots <= 0) {
-      handleModalOpen('Upload Limit Reached', 'You can only upload a maximum of 5 images.');
+    // RULE: If video already exists, or if images exist and trying to upload video, alert.
+    // User requested: "jika foto, foto saja. jika video, video saja ga boleh gabung"
+    const hasVideo = formData.images.some(m => m.type === 'VIDEO');
+    const hasImages = formData.images.some(m => m.type === 'IMAGE');
+
+    const incomingFiles = Array.from(files);
+    const incomingVideos = incomingFiles.filter(f => f.type.startsWith('video/'));
+    const incomingImages = incomingFiles.filter(f => f.type.startsWith('image/'));
+
+    if (incomingVideos.length > 0 && (hasImages || incomingImages.length > 0)) {
+      handleModalOpen('Content Mismatch', 'You cannot mix photos and videos in a single post.');
+      return;
+    }
+    if (incomingImages.length > 0 && hasVideo) {
+      handleModalOpen('Content Mismatch', 'You cannot mix photos and videos in a single post.');
+      return;
+    }
+    if (incomingVideos.length > 1 || (hasVideo && incomingVideos.length > 0)) {
+      handleModalOpen('Limit Reached', 'You can only upload a maximum of 1 video.');
       return;
     }
 
-    const filesToUpload = Array.from(files).slice(0, remainingSlots);
-    const previewUrls = filesToUpload.map((file) => URL.createObjectURL(file));
+    // New: If already has video, do nothing
+    if (hasVideo) return;
+
+    const remainingSlots = hasImages ? 5 - formData.images.length : (incomingVideos.length > 0 ? 1 : 5);
+    if (remainingSlots <= 0) {
+      handleModalOpen('Limit Reached', 'You have reached the maximum media limit.');
+      return;
+    }
+
+    const filesToUpload = incomingFiles.slice(0, remainingSlots);
+    const mediaToUpload = filesToUpload.map(file => ({
+      preview: URL.createObjectURL(file),
+      type: file.type.startsWith('video/') ? 'VIDEO' : 'IMAGE',
+      file
+    }));
+
     setFormData((prev) => ({
       ...prev,
-      images: [...prev.images, ...previewUrls],
+      images: [...prev.images, ...mediaToUpload.map(m => ({ url: m.preview, type: m.type }))],
     }));
 
     const newUploads: Record<string, number> = {};
-    filesToUpload.forEach((file, index) => {
-      newUploads[previewUrls[index]] = 0;
+    mediaToUpload.forEach((m) => {
+      newUploads[m.preview] = 0;
     });
     setUploadProgress(prev => ({ ...prev, ...newUploads }));
 
     try {
-      const uploadPromises = filesToUpload.map(async (file, index) => {
-        const currentPreviewUrl = previewUrls[index];
-        if (file.size > 1024 * 1024 * 2) {
-          handleModalOpen('File Too Large', `Image ${file.name} exceeds the 2MB size limit.`);
-          setUploadProgress(prev => { const newState = { ...prev }; delete newState[currentPreviewUrl]; return newState; });
-          return null;
+      const uploadPromises = mediaToUpload.map(async (media) => {
+        const currentPreviewUrl = media.preview;
+        const file = media.file;
+
+        if (media.type === 'VIDEO') {
+          if (file.size > 1024 * 1024 * 10) { // 10MB max for video
+            handleModalOpen('File Too Large', `Video exceeds the 10MB limit.`);
+            setUploadProgress(prev => { const newState = { ...prev }; delete newState[currentPreviewUrl]; return newState; });
+            return null;
+          }
+        } else {
+          if (file.size > 1024 * 1024 * 2) {
+            handleModalOpen('File Too Large', `Image ${file.name} exceeds the 2MB size limit.`);
+            setUploadProgress(prev => { const newState = { ...prev }; delete newState[currentPreviewUrl]; return newState; });
+            return null;
+          }
         }
 
-        const options = { maxSizeMB: 1, maxWidthOrHeight: 1920, useWebWorker: true, onProgress: (p: number) => setUploadProgress(prev => ({ ...prev, [currentPreviewUrl]: p })) };
-        const compressedFile = await imageCompression(file, options);
+        let fileToUpload: File | Blob = file;
+        
+        // Only compress images
+        if (media.type === 'IMAGE') {
+          const options = { maxSizeMB: 1, maxWidthOrHeight: 1920, useWebWorker: true, onProgress: (p: number) => setUploadProgress(prev => ({ ...prev, [currentPreviewUrl]: p })) };
+          fileToUpload = await imageCompression(file, options);
+        } else {
+          setUploadProgress(prev => ({ ...prev, [currentPreviewUrl]: 50 }));
+        }
+
         const uploadFormData = new FormData();
-        uploadFormData.append('file', compressedFile);
+        uploadFormData.append('file', fileToUpload);
 
         const res = await fetch('/api/upload', { method: 'POST', body: uploadFormData });
         let data;
@@ -272,38 +320,34 @@ export default function PostForm() {
         if (!res.ok) {
            throw new Error(data?.error || `Upload failed with status ${res.status}`);
         }
-        if (!data?.url) {
-           throw new Error('Upload succeeded but no URL returned.');
-        }
-        return data.url;
+        return { url: data.url, type: media.type };
       });
 
-      const uploadedUrls = await Promise.all(uploadPromises.map(p => p.catch(e => {
+      const uploadedResults = await Promise.all(uploadPromises.map(p => p.catch(e => {
         console.error("Individual upload error:", e);
-        return null; // swallow individual errors, handle via validUrls count
+        return null;
       })));
       
-      const validUrls = uploadedUrls.filter((url): url is string => typeof url === 'string' && url.trim().length > 0 && url.startsWith('/uploads/'));
+      const validResults = uploadedResults.filter((res): res is { url: string; type: string } => 
+        res !== null && typeof res.url === 'string' && res.url.startsWith('/uploads/')
+      );
 
-      // Whether success or partial failure, always replace/remove the temporary blobs.
+      const previewUrls = mediaToUpload.map(m => m.preview);
       setFormData((prev) => ({
         ...prev,
-        images: [...prev.images.filter((url) => !previewUrls.includes(url)), ...validUrls],
+        images: [...prev.images.filter((m) => !previewUrls.includes(m.url)), ...validResults],
       }));
       previewUrls.forEach((u) => URL.revokeObjectURL(u));
 
-      if (validUrls.length < filesToUpload.length) {
-         handleModalOpen('Partial Upload', 'Some images failed to upload. Please ensure files are under 10MB and are valid image formats.');
-      }
     } catch (err) {
       console.error('Upload process failed:', err);
-      // Clean up blobs on catastrophic failure
+      const previewUrls = mediaToUpload.map(m => m.preview);
       setFormData((prev) => ({
         ...prev,
-        images: prev.images.filter((url) => !previewUrls.includes(url)),
+        images: prev.images.filter((m) => !previewUrls.includes(m.url)),
       }));
       previewUrls.forEach((u) => URL.revokeObjectURL(u));
-      handleModalOpen('Upload Failed', err instanceof Error ? err.message : 'There was an error uploading your images.');
+      handleModalOpen('Upload Failed', err instanceof Error ? err.message : 'Error uploading media.');
     } finally {
       if (fileInputRef.current) fileInputRef.current.value = '';
     }
@@ -335,14 +379,14 @@ export default function PostForm() {
   };
 
   const submitPost = async (asDraft: boolean) => {
-    const images = (Array.isArray(formData.images) ? formData.images : []).filter((u): u is string => typeof u === 'string' && u.trim().length > 0);
-    if (images.some((u) => u.startsWith('blob:'))) {
-      handleModalOpen('Upload In Progress', 'Please wait until image upload finishes.');
+    const media = (Array.isArray(formData.images) ? formData.images : []).filter(m => typeof m.url === 'string' && m.url.trim().length > 0);
+    if (media.some((m) => m.url.startsWith('blob:'))) {
+      handleModalOpen('Upload In Progress', 'Please wait until media upload finishes.');
       return;
     }
-    const validImages = images.filter((u) => !u.startsWith('blob:'));
-    if (validImages.length === 0) {
-      handleModalOpen('Image Required', 'Please upload at least 1 image.');
+    const validMedia = media.filter((m) => !m.url.startsWith('blob:'));
+    if (validMedia.length === 0) {
+      handleModalOpen('Media Required', 'Please upload at least 1 image or video.');
       return;
     }
 
@@ -366,7 +410,7 @@ export default function PostForm() {
           guidePrice: formData.guidePrice?.trim() || null,
           googleMapsUrl: formData.googleMapsUrl?.trim() || null,
           isDraft: asDraft,
-          images: validImages,
+          images: validMedia, // Sends array of {url, type} objects
           locationId: parseInt(formData.locationId),
           hashtagIds: formData.hashtagIds.map(id => parseInt(id))
         })
@@ -456,7 +500,7 @@ export default function PostForm() {
       lemonSqueezyUrl: formData.lemonSqueezyUrl,
       guidePrice: formData.guidePrice,
       googleMapsUrl: formData.googleMapsUrl,
-      images: formData.images.map((url, i) => ({ id: i, url, postId: 0 })),
+      images: formData.images.map((m, i) => ({ id: i, url: m.url, type: m.type, postId: 0 })),
       likes: 0,
       saves: 0,
       venue: null,
@@ -683,13 +727,19 @@ export default function PostForm() {
             </div>
             <div className="p-6">
               <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
-                {formData.images.map((url, idx) => {
+                {formData.images.map((media, idx) => {
+                  const url = typeof media === 'string' ? media : media.url;
+                  const type = typeof media === 'string' ? 'IMAGE' : media.type;
                   const isUploading = url.startsWith('blob:');
                   const progress = uploadProgress[url];
 
                   return (
                     <div key={idx} className="relative aspect-square bg-zinc-50 rounded-xl group overflow-hidden border border-zinc-200">
-                      <img src={url} alt="" className="w-full h-full object-cover" />
+                      {type === 'VIDEO' ? (
+                        <video src={url} className="w-full h-full object-cover" />
+                      ) : (
+                        <img src={url} alt="" className="w-full h-full object-cover" />
+                      )}
 
                       {isUploading && progress !== undefined ? (
                         <div className="absolute inset-0 bg-white/60 backdrop-blur-[2px] z-10 flex items-center justify-center">
@@ -702,17 +752,26 @@ export default function PostForm() {
                           Remove
                         </button>
                       )}
+                      
+                      {type === 'VIDEO' && (
+                        <div className="absolute top-2 left-2 px-1.5 py-0.5 bg-black/60 text-white text-[8px] font-black rounded uppercase">Video</div>
+                      )}
                     </div>
                   );
                 })}
-                {formData.images.length + Object.keys(uploadProgress).length < 5 && (
+                {/* Limit Logic: Hide add button if 1 video exists OR 5 photos exist */}
+                {!(formData.images.some(m => m.type === 'VIDEO')) && formData.images.length < 5 && (
                   <button type="button" onClick={() => fileInputRef.current?.click()} className="aspect-square border border-dashed border-zinc-300 rounded-xl hover:border-zinc-500 hover:bg-zinc-50 transition-colors flex flex-col items-center justify-center gap-2 group">
                     <svg className="w-5 h-5 text-zinc-400 group-hover:text-zinc-600 transition-colors" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12" /></svg>
-                    <span className="text-[12px] font-black text-zinc-400 group-hover:text-zinc-600 ">Add</span>
+                    <span className="text-[12px] font-black text-zinc-400 group-hover:text-zinc-600 ">Add Media</span>
                   </button>
                 )}
               </div>
-              <input type="file" ref={fileInputRef} onChange={handleImageUpload} accept="image/*" multiple className="hidden" />
+              <input type="file" ref={fileInputRef} onChange={handleMediaUpload} accept="image/*,video/mp4" multiple className="hidden" />
+              <p className="mt-3 text-[10px] text-zinc-400 font-black uppercase tracking-widest leading-relaxed">
+                * RULE: 5 Photos <span className="text-zinc-300 mx-1">OR</span> 1 Video (Max 10MB/1min)<br/>
+                <span className="text-amber-500">Mixing photos and videos is NOT allowed.</span>
+              </p>
             </div>
           </div>
         </div>

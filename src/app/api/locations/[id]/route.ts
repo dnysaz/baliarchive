@@ -14,7 +14,7 @@ export async function PUT(
     });
     return NextResponse.json(location);
   } catch (error) {
-    return NextResponse.json({ error: 'Gagal update lokasi' }, { status: 500 });
+    return NextResponse.json({ error: 'Failed to update location' }, { status: 500 });
   }
 }
 
@@ -26,18 +26,18 @@ export async function DELETE(
   const locationId = parseInt(id);
 
   try {
-    // Find the fallback location, e.g., "Denpasar"
+    // Find the fallback location, using "Bali" as the primary fallback
     const fallbackLocation = await (prisma as any).location.findFirst({
-      where: { name: 'Denpasar' },
+      where: { name: 'Bali' },
       select: { id: true },
     });
 
     if (!fallbackLocation) {
-      return NextResponse.json({ error: 'Fallback location not found' }, { status: 500 });
+      return NextResponse.json({ error: 'Fallback regency ("Bali") not found in database. Please create a regency named "Bali" first.' }, { status: 404 });
     }
 
     if (locationId === fallbackLocation.id) {
-      return NextResponse.json({ error: 'Cannot delete the fallback location' }, { status: 400 });
+      return NextResponse.json({ error: 'Cannot delete the primary fallback regency ("Bali").' }, { status: 400 });
     }
 
     // Update all posts associated with the location to be deleted
@@ -49,9 +49,9 @@ export async function DELETE(
     // Delete the location
     await (prisma as any).location.delete({ where: { id: locationId } });
 
-    return NextResponse.json({ message: 'Lokasi dihapus dan postingan dialihkan' });
+    return NextResponse.json({ message: 'Location deleted and posts redirected' });
   } catch (error) {
     console.error("Failed to delete location:", error);
-    return NextResponse.json({ error: 'Gagal hapus lokasi' }, { status: 500 });
+    return NextResponse.json({ error: 'Failed to delete location' }, { status: 500 });
   }
 }

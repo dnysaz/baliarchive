@@ -109,7 +109,11 @@ export default function AdminPosts() {
         {posts.map(post => (
           <div key={post.id} className="relative aspect-[3/4] bg-white rounded-2xl group overflow-hidden border border-black/5 hover:border-amber-500/50 transition-all duration-300 shadow-sm hover:shadow-2xl hover:shadow-amber-500/10">
             {post.images[0] ? (
-              <img src={post.images[0].url} alt="" className="w-full h-full object-cover grayscale opacity-80 group-hover:grayscale-0 group-hover:opacity-100 group-hover:scale-105 transition-all duration-500" />
+              post.images[0].type === 'VIDEO' ? (
+                <video src={post.images[0].url} className="w-full h-full object-cover grayscale group-hover:grayscale-0 opacity-80 group-hover:opacity-100 group-hover:scale-105 transition-all duration-500" playsInline muted loop autoPlay />
+              ) : (
+                <img src={post.images[0].url} alt="" className="w-full h-full object-cover grayscale opacity-80 group-hover:grayscale-0 group-hover:opacity-100 group-hover:scale-105 transition-all duration-500" />
+              )
             ) : (
               <div className="w-full h-full flex items-center justify-center bg-zinc-100 text-zinc-300">
                 <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>

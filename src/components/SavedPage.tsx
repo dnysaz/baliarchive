@@ -3,7 +3,7 @@
 import React from 'react';
 import type { Prisma } from '@prisma/client';
 
-type Post = Prisma.PostGetPayload<{ include: { images: true, hashtags: true } }>;
+type Post = Prisma.PostGetPayload<{ include: { images: true, hashtags: true, location: true } }>;
 
 interface SavedPageProps {
   isOpen: boolean;
@@ -16,11 +16,11 @@ export default function SavedPage({ isOpen, onClose, savedPosts, onOpenPost }: S
   return (
     <div className={`font-sans fixed inset-0 z-[300] bg-zinc-50 flex flex-col transition-transform duration-500 ease-out ${isOpen ? 'translate-y-0 pointer-events-auto' : 'translate-y-full pointer-events-none'}`}>
       
-      {/* Header */}
-      <div className="shrink-0 flex items-center justify-between px-6 bg-white border-b border-black/[0.04] pt-[max(24px,env(safe-area-inset-top))] pb-5 z-10 shadow-[0_4px_20px_rgba(0,0,0,0.02)]">
+      {/* Header - Matching Search Styles */}
+      <div className="shrink-0 flex items-center justify-between px-6 bg-white border-b-2 border-amber-500 pt-[max(20px,env(safe-area-inset-top))] pb-6 z-10">
         <div className="flex flex-col">
-          <h1 className="text-xl md:text-2xl font-black text-zinc-900 tracking-tight leading-none mb-1">Saved Destinations</h1>
-          <p className="text-[10px] md:text-[11px] font-bold tracking-widest uppercase text-amber-500">{savedPosts.length} {savedPosts.length === 1 ? 'Place' : 'Places'} Archived</p>
+          <h1 className="text-xl md:text-2xl font-black text-zinc-900 tracking-tight leading-none mb-1">Saved Archive</h1>
+          <p className="text-[10px] md:text-[11px] font-bold tracking-widest uppercase text-amber-500">{savedPosts.length} Places Bookmarked</p>
         </div>
         <button 
           type="button"
@@ -31,35 +31,35 @@ export default function SavedPage({ isOpen, onClose, savedPosts, onOpenPost }: S
         </button>
       </div>
 
-      {/* Grid Content */}
-      <div className="flex-1 overflow-y-auto p-6 lg:p-12">
+      {/* Grid Content - Matching Search Styles */}
+      <div className="flex-1 overflow-y-auto bg-zinc-50 p-6 lg:p-12">
         <div className="max-w-7xl mx-auto">
           {savedPosts.length > 0 ? (
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 lg:gap-6">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 lg:gap-6">
               {savedPosts.map(post => (
                 <button 
                   key={post.id} 
-                  className="relative group overflow-hidden rounded-3xl aspect-[3/4] bg-white border border-black/5 hover:border-amber-500/50 appearance-none outline-none text-left cursor-pointer active:scale-[0.98] transition-all duration-300 shadow-sm hover:shadow-2xl hover:shadow-amber-500/20"
+                  className="relative group overflow-hidden rounded-[24px] aspect-[3/4] bg-white border border-black/5 appearance-none outline-none text-left cursor-pointer active:scale-[0.98] transition-all duration-300 shadow-sm"
                   onClick={(e) => { e.preventDefault(); e.stopPropagation(); onOpenPost(post); }}
                 >
-                  <img src={post.images[0]?.url || ''} alt={post.title} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
+                  {post.images[0]?.type === 'VIDEO' ? (
+                    <video src={post.images[0].url} className="w-full h-full object-cover group-hover:scale-105 transition-all duration-700" playsInline muted loop autoPlay />
+                  ) : (
+                    <img 
+                      src={post.images[0]?.url || ''} 
+                      alt="" 
+                      className="w-full h-full object-cover transition-all duration-700 group-hover:scale-105" 
+                    />
+                  )}
                   
-                  {/* Gradient Overlay */}
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent flex flex-col justify-end p-5">
-                    
-                    {/* Metadata tags */}
-                    <div className="flex flex-wrap gap-1.5 mb-2.5 translate-y-2 opacity-80 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-300">
-                      <span className="px-2.5 py-1 bg-amber-500 text-white text-[9px] font-black tracking-wider uppercase rounded-full shadow-lg">
-                        {post.kabupaten}
-                      </span>
-                      <span className="px-2.5 py-1 bg-white/20 backdrop-blur-md text-white border border-white/20 text-[9px] font-bold tracking-wide rounded-full">
-                        {post.cost === 'Free' || post.cost.toLowerCase().includes('free') ? 'Free' : 'Ticket' }
-                      </span>
-                    </div>
-                    
-                    {/* Titles */}
-                    <h3 className="text-white text-sm lg:text-base font-semibold leading-tight drop-shadow-md truncate">{post.title}</h3>
-                    <p className="text-[9px] text-zinc-300 font-medium mt-1 truncate group-hover:text-amber-400 transition-colors drop-shadow-md">{post.tagline}</p>
+                  {/* Gradient Overlay - Matching Search Styles */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent flex flex-col justify-end p-4 transition-all duration-300">
+                    <span className="text-[9px] font-black text-amber-500 uppercase tracking-widest mb-1 truncate">
+                      {post.location?.name || post.kabupaten}
+                    </span>
+                    <h3 className="text-white text-[11px] lg:text-sm font-bold leading-tight drop-shadow-md truncate group-hover:text-amber-400 transition-colors">
+                      {post.title}
+                    </h3>
                   </div>
                 </button>
               ))}

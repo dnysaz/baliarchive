@@ -3,16 +3,17 @@ import { writeFile, mkdir } from 'fs/promises';
 import { join } from 'path';
 import { v4 as uuidv4 } from 'uuid';
 
-// Allowed MIME types for upload (images only + PDF for guide files)
+// Allowed MIME types for upload (images + MP4 video + PDF for guide files)
 const ALLOWED_MIME_TYPES = new Set([
   'image/jpeg',
   'image/png',
   'image/webp',
   'image/gif',
+  'video/mp4',
   'application/pdf',
 ]);
 
-// Max file size: 10MB
+// Max file size: 10MB (enough for ~1 min optimized mobile video)
 const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024;
 
 export async function POST(request: Request) {
@@ -32,7 +33,7 @@ export async function POST(request: Request) {
     // Validate MIME type against whitelist
     if (!ALLOWED_MIME_TYPES.has(file.type)) {
       return NextResponse.json(
-        { error: 'Invalid file type. Only images (JPEG, PNG, WebP, GIF) and PDF are allowed.' },
+        { error: 'Invalid file type. Only images, MP4 videos, and PDF are allowed.' },
         { status: 415 }
       );
     }
@@ -46,6 +47,7 @@ export async function POST(request: Request) {
       'image/png': 'png',
       'image/webp': 'webp',
       'image/gif': 'gif',
+      'video/mp4': 'mp4',
       'application/pdf': 'pdf',
     };
     const fileExtension = MIME_TO_EXT[file.type] || 'blob';

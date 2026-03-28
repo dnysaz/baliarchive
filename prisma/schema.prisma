@@ -29,36 +29,37 @@ model Hashtag {
 }
 
 model Post {
-  id            Int       @id @default(autoincrement())
-  kabupaten     String
-  locationId    Int
-  province      String    @default("Bali")
-  title         String
-  slug          String?   @unique
-  tagline       String
-  likes         Int       @default(0)
-  saves         Int       @default(0)
-  views         Int       @default(0)
-  bestTime      String
-  howToGet      String
-  cost          String
-  body          String
-  venue         String?
-  guidePdfUrl   String?
+  id              Int       @id @default(autoincrement())
+  kabupaten       String
+  locationId      Int
+  province        String    @default("Bali")
+  title           String
+  slug            String?   @unique
+  tagline         String
+  likes           Int       @default(0)
+  saves           Int       @default(0)
+  views           Int       @default(0)
+  bestTime        String
+  howToGet        String
+  cost            String
+  body            String
+  venue           String?
+  guidePdfUrl     String?
+  guidePrice      String?
+  googleMapsUrl   String?
+  isDraft         Boolean   @default(false)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
   lemonSqueezyUrl String?
-  guidePrice    String?
-  googleMapsUrl String?
-  isDraft       Boolean   @default(false)
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  images        Image[]
-  location      Location  @relation(fields: [locationId], references: [id])
-  hashtags      Hashtag[] @relation("HashtagToPost")
+  images          Image[]
+  location        Location  @relation(fields: [locationId], references: [id])
+  hashtags        Hashtag[] @relation("HashtagToPost")
 }
 
 model Image {
   id     Int    @id @default(autoincrement())
   url    String
+  type   String @default("IMAGE") // New: supports IMAGE or VIDEO
   postId Int
   post   Post   @relation(fields: [postId], references: [id])
 }

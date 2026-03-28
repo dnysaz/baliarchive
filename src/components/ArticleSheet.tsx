@@ -5,15 +5,16 @@ import DOMPurify from 'isomorphic-dompurify';
 
 import type { Prisma } from '@prisma/client';
 
-type Post = Prisma.PostGetPayload<{ include: { images: true } }>;
+type Post = Prisma.PostGetPayload<{ include: { images: true, location: true, hashtags: true } }>;
 
 interface ArticleSheetProps {
   isOpen: boolean;
   onClose: () => void;
   post: Post | null;
+  onFilter: (type: 'regency' | 'tag', value: string) => void;
 }
 
-export default function ArticleSheet({ isOpen, onClose, post }: ArticleSheetProps) {
+export default function ArticleSheet({ isOpen, onClose, post, onFilter }: ArticleSheetProps) {
   const sheetRef = React.useRef<HTMLDivElement>(null);
   const [isLiked, setIsLiked] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
@@ -190,15 +191,21 @@ export default function ArticleSheet({ isOpen, onClose, post }: ArticleSheetProp
         <div id="sheet-content" className="flex-1 min-h-0 overflow-y-auto px-6 pb-20 pt-1 lg:px-10 scroll-smooth">
           <div className="mb-7">
             <div className="flex items-center gap-1.5 mb-3.5 flex-wrap">
-              <span className="text-[12px] font-black text-amber-600 tracking-tighter normal-case">
-                {post.kabupaten}
-              </span>
+              <button 
+                onClick={() => post.location?.name && onFilter('regency', post.location.name)}
+                className="text-[12px] font-black text-amber-600 tracking-tighter normal-case hover:underline active:scale-95 transition-all text-left"
+              >
+                {post.location?.name || post.kabupaten}
+              </button>
               {(post as any).hashtags?.map((hash: any, i: number) => (
                 <React.Fragment key={hash.id || i}>
                   <span className="w-0.5 h-0.5 bg-zinc-200 rounded-full" />
-                  <span className="text-[12px] font-bold text-zinc-400 tracking-tighter normal-case">
+                  <button 
+                    onClick={() => onFilter('tag', hash.name)}
+                    className="text-[12px] font-bold text-zinc-400 tracking-tighter normal-case hover:text-zinc-600 hover:underline active:scale-95 transition-all text-left"
+                  >
                     #{hash.name}
-                  </span>
+                  </button>
                 </React.Fragment>
               ))}
             </div>

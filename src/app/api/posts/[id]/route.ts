@@ -49,11 +49,11 @@ export async function PUT(
     // berdasarkan `images` dari request body.
     // Jika client tidak mengirim `images` (atau mengirim array kosong),
     // maka gambar lama ikut hilang.
-    const imageUrls = (Array.isArray(images) ? images : []).filter(
-      (u: unknown): u is string => typeof u === 'string' && u.trim().length > 0
+    const mediaItems = (Array.isArray(images) ? images : []).filter(
+      (m: any): m is { url: string; type: string } => typeof m.url === 'string' && m.url.trim().length > 0
     );
-    const hasNewImages = imageUrls.length > 0;
-    if (hasNewImages) {
+    const hasMedia = mediaItems.length > 0;
+    if (hasMedia) {
       await prisma.image.deleteMany({ where: { postId: actualId } });
     } else {
       console.warn('PUT /api/posts/[id]: images empty, keeping existing images', {
@@ -101,9 +101,9 @@ export async function PUT(
       updateData.slug = newSlug;
     }
 
-    if (hasNewImages) {
+    if (hasMedia) {
       updateData.images = {
-        create: imageUrls.map((url: string) => ({ url })),
+        create: mediaItems.map((m: any) => ({ url: m.url, type: m.type || 'IMAGE' })),
       };
     }
 

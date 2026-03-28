@@ -43,8 +43,8 @@ export async function POST(request: Request) {
     // Support multiple hashtags (limit to 3 for safety even if UI allows more)
     const validHashtagIds = Array.isArray(hashtagIds) ? hashtagIds.slice(0, 3) : [];
     
-    const imageUrls = (Array.isArray(images) ? images : []).filter(
-      (u: unknown): u is string => typeof u === 'string' && u.trim().length > 0
+    const mediaItems = (Array.isArray(images) ? images : []).filter(
+      (m: any): m is { url: string; type: string } => typeof m.url === 'string' && m.url.trim().length > 0
     );
 
     let slug = generateSlug(title);
@@ -78,8 +78,8 @@ export async function POST(request: Request) {
         hashtags: { 
           connect: validHashtagIds.map((id: number) => ({ id })) 
         },
-        images: imageUrls.length > 0
-          ? { create: imageUrls.map((url: string) => ({ url })) }
+        images: mediaItems.length > 0
+          ? { create: mediaItems.map((m: any) => ({ url: m.url, type: m.type || 'IMAGE' })) }
           : undefined
       } as any,
       include: { images: true, location: true, hashtags: true } as any

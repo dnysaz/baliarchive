@@ -14,7 +14,7 @@ export async function generateMetadata({ searchParams }: Props): Promise<Metadat
   if (postSlug) {
     const post = await prisma.post.findFirst({
       where: { OR: [{ slug: postSlug }, { id: isNaN(Number(postSlug)) ? -1 : Number(postSlug) }] },
-      include: { images: true, hashtags: true },
+      include: { images: true, hashtags: true, location: true },
     });
 
     if (post) {
@@ -22,7 +22,7 @@ export async function generateMetadata({ searchParams }: Props): Promise<Metadat
       const absoluteImage = ogImage.startsWith('http') ? ogImage : `${process.env.NEXT_PUBLIC_BASE_URL || 'https://baliarchive.com'}${ogImage}`;
 
       return {
-        title: `${post.title} — BaliArchive`,
+        title: `${post.title} — ${post.location?.name || 'BaliArchive'}`,
         description: post.tagline,
         openGraph: {
           title: post.title,
@@ -58,7 +58,7 @@ export async function generateMetadata({ searchParams }: Props): Promise<Metadat
 export default async function Home({ searchParams }: Props) {
   const posts = await prisma.post.findMany({
     where: { isDraft: false },
-    include: { images: true, hashtags: true },
+    include: { images: true, hashtags: true, location: true },
     orderBy: { createdAt: 'desc' },
   });
 

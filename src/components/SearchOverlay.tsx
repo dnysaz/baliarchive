@@ -7,7 +7,7 @@ const SearchIcon = ({ size = 14, color = "white" }: { size?: number, color?: str
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.2" strokeLinecap="round"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" /></svg>
 );
 
-type Post = Prisma.PostGetPayload<{ include: { images: true, hashtags: true } }>;
+type Post = Prisma.PostGetPayload<{ include: { images: true, hashtags: true, location: true } }>;
 
 interface SearchOverlayProps {
   isOpen: boolean;
@@ -31,11 +31,16 @@ export default function SearchOverlay({ isOpen, onClose, searchQuery, setSearchQ
 
   const results = useMemo(() => {
     if (searchQuery.length < 1) return [];
+    const lowerQuery = searchQuery.toLowerCase();
+    const cleanTagQuery = lowerQuery.startsWith('#') ? lowerQuery.slice(1) : lowerQuery;
+
     return allPosts.filter(p =>
-      p.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      p.kabupaten.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      p.tagline.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (p.venue && p.venue.toLowerCase().includes(searchQuery.toLowerCase()))
+      p.title.toLowerCase().includes(lowerQuery) ||
+      p.kabupaten.toLowerCase().includes(lowerQuery) ||
+      (p.location?.name && p.location.name.toLowerCase().includes(lowerQuery)) ||
+      p.tagline.toLowerCase().includes(lowerQuery) ||
+      (p.venue && p.venue.toLowerCase().includes(lowerQuery)) ||
+      (p.hashtags && p.hashtags.some((h: any) => h.name.toLowerCase().includes(cleanTagQuery)))
     ).slice(0, 8);
   }, [searchQuery, allPosts]);
 
@@ -71,26 +76,37 @@ export default function SearchOverlay({ isOpen, onClose, searchQuery, setSearchQ
         <div className="flex-1 overflow-y-auto bg-zinc-50">
           {/* STATE: HAS RESULTS */}
           {searchQuery.length >= 1 && results.length > 0 && (
-            <div className="divide-y divide-black/5">
-              <p className="px-6 pt-5 pb-2 text-xs font-black tracking-widest text-zinc-400 uppercase">Results</p>
-              {results.map(post => (
-                <button
-                  key={post.id}
-                  className="w-full flex items-center gap-4 px-6 py-4 hover:bg-black/5 text-left transition-all cursor-pointer active:bg-black/10 group"
-                  onClick={() => { onSelectPost(post); onClose(); }}
-                >
-                  <div className="w-14 h-14 rounded-lg overflow-hidden bg-black/5 shrink-0 border border-black/5 group-hover:border-amber-600/30 transition-colors">
-                    {post.images[0] && <img src={post.images[0].url} className="w-full h-full object-cover grayscale opacity-60 group-hover:grayscale-0 group-hover:opacity-100 transition-all duration-500" alt="" />}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-bold text-zinc-800 truncate group-hover:text-amber-600 transition-colors">{post.title}</p>
-                    <p className="text-xs text-zinc-500 font-medium mt-1">{post.kabupaten}</p>
-                  </div>
-                  <div className="text-zinc-300 group-hover:text-amber-600 transition-colors shrink-0">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="7" y1="17" x2="17" y2="7" /><polyline points="7 7 17 7 17 17" /></svg>
-                  </div>
-                </button>
-              ))}
+            <div className="p-4 lg:p-8">
+              <p className="px-2 pb-4 text-[10px] font-black tracking-widest text-zinc-400 uppercase">Results</p>
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 lg:gap-6">
+                {results.map(post => (
+                  <button
+                    key={post.id}
+                    className="relative group overflow-hidden rounded-[24px] aspect-[3/4] bg-white border border-black/5 appearance-none outline-none text-left cursor-pointer active:scale-[0.98] transition-all duration-300 shadow-sm"
+                    onClick={() => { onSelectPost(post); onClose(); }}
+                  >
+                    {post.images[0]?.type === 'VIDEO' ? (
+                      <video src={post.images[0].url} className="w-full h-full object-cover transition-all duration-700 group-hover:scale-105" playsInline muted loop autoPlay />
+                     ) : (
+                      <img 
+                        src={post.images[0]?.url || ''} 
+                        alt="" 
+                        className="w-full h-full object-cover transition-all duration-700 group-hover:scale-105" 
+                      />
+                    )}
+                    
+                    {/* Gradient Overlay */}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent flex flex-col justify-end p-4 transition-all duration-300">
+                      <span className="text-[9px] font-black text-amber-500 uppercase tracking-widest mb-1 truncate">
+                        {post.location?.name || post.kabupaten}
+                      </span>
+                      <h3 className="text-white text-[11px] lg:text-sm font-bold leading-tight drop-shadow-md truncate group-hover:text-amber-400 transition-colors">
+                        {post.title}
+                      </h3>
+                    </div>
+                  </button>
+                ))}
+              </div>
             </div>
           )}
 
@@ -103,17 +119,28 @@ export default function SearchOverlay({ isOpen, onClose, searchQuery, setSearchQ
 
           {/* STATE: EMPTY QUERY — show top 5 popular */}
           {searchQuery.length === 0 && (
-            <div className="p-5">
-              <div className="flex flex-col gap-0.5">
+            <div className="p-5 lg:p-10">
+              <div className="mb-6 flex items-center justify-between px-2">
+                <h3 className="text-sm font-black text-zinc-900 tracking-tight flex items-center gap-2">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+                  Most Popular
+                </h3>
+                <span className="text-[10px] font-black text-amber-600 uppercase tracking-widest">Trending now</span>
+              </div>
+              <div className="flex flex-col gap-1.5">
                 {popularPosts.map((post, i) => (
                   <button 
                   key={post.id} 
                   onClick={() => { onSelectPost(post); onClose(); }}
-                  className="w-full flex items-center gap-4 p-3 rounded-2xl hover:bg-zinc-50 transition-all group border border-transparent hover:border-zinc-100"
+                  className="w-full flex items-center gap-4 py-3 px-2 rounded-2xl bg-transparent transition-all group active:scale-[0.98]"
                 >
-                  <div className="w-14 h-14 rounded-xl overflow-hidden shrink-0 bg-zinc-100 border border-black/5">
+                  <div className="w-14 h-14 rounded-xl overflow-hidden shrink-0 bg-zinc-100 border border-black/[0.03]">
                     {post.images?.[0] ? (
-                      <img src={post.images[0].url} alt="" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+                      post.images[0].type === 'VIDEO' ? (
+                        <video src={post.images[0].url} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" playsInline muted loop autoPlay />
+                      ) : (
+                        <img src={post.images[0].url} alt="" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+                      )
                     ) : (
                       <div className="w-full h-full flex items-center justify-center text-zinc-300">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
@@ -124,12 +151,12 @@ export default function SearchOverlay({ isOpen, onClose, searchQuery, setSearchQ
                     <div className="flex items-center gap-2 mb-0.5">
                       <span className="text-[9px] font-black text-amber-600 uppercase tracking-widest">#{post.hashtags?.[0]?.name || 'Untagged'}</span>
                     </div>
-                    <h3 className="text-sm font-bold text-zinc-900 truncate tracking-tight">{post.title}</h3>
-                    <p className="text-xs text-zinc-500 font-medium mt-1">{post.kabupaten}</p>
+                    <h3 className="text-[13px] font-bold text-zinc-900 truncate tracking-tight">{post.title}</h3>
+                    <p className="text-[11px] text-zinc-500 font-medium mt-0.5">{post.location?.name || post.kabupaten}</p>
                   </div>
-                    <div className="flex items-center gap-1 shrink-0">
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#18181b" strokeWidth="2"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" /></svg>
-                      <span className="text-xs font-black text-zinc-400">{post.likes ?? 0}</span>
+                    <div className="flex items-center gap-1.5 shrink-0 bg-zinc-100/50 px-3 py-1.5 rounded-full">
+                      <svg width="10" height="10" viewBox="0 0 24 24" fill="#f43f5e" stroke="none"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" /></svg>
+                      <span className="text-[11px] font-black text-zinc-900">{post.likes ?? 0}</span>
                     </div>
                   </button>
                 ))}
