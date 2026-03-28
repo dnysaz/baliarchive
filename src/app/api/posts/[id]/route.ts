@@ -29,7 +29,7 @@ export async function PUT(
     const { 
       locationId, province, hashtagIds, title, tagline, 
       bestTime, howToGet, cost, body: contentBody, 
-      venue, images, guidePdfUrl, guidePrice, googleMapsUrl, isDraft 
+      venue, images, guidePdfUrl, lemonSqueezyUrl, guidePrice, googleMapsUrl, isDraft 
     } = body;
 
     const location = await (prisma as any).location.findUnique({ where: { id: locationId } });
@@ -73,6 +73,7 @@ export async function PUT(
       venue,
       // Store guide fields if provided. Convert '' to null so the UI can use truthy checks.
       guidePdfUrl: guidePdfUrl || null,
+      lemonSqueezyUrl: lemonSqueezyUrl || null,
       guidePrice: guidePrice || null,
       googleMapsUrl: googleMapsUrl || null,
       isDraft: isDraft !== undefined ? isDraft : false,

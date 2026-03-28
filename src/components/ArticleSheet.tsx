@@ -19,6 +19,10 @@ export default function ArticleSheet({ isOpen, onClose, post }: ArticleSheetProp
   const [isSaved, setIsSaved] = useState(false);
   const [likesCount, setLikesCount] = useState(0);
   const guidePdfUrl = post?.guidePdfUrl?.trim() || null;
+  const lemonSqueezyUrl = (post as any)?.lemonSqueezyUrl?.trim() || null;
+  // Paid guide takes priority; free PDF is shown only if no paid link exists
+  const hasPaidGuide = !!lemonSqueezyUrl;
+  const hasFreeGuide = !!guidePdfUrl && !hasPaidGuide;
 
   // Initialize likes and states from post and local storage
   useEffect(() => {
@@ -172,7 +176,7 @@ export default function ArticleSheet({ isOpen, onClose, post }: ArticleSheetProp
       {/* Header */}
       <div className="flex items-center justify-between px-6 py-3 shrink-0 flex-shrink-0">
         <span className="text-[8px] font-black tracking-[0.15em] text-zinc-400 normal-case">BaliArchive Guide</span>
-        <button 
+        <button
           type="button"
           className="w-10 h-10 rounded-full bg-zinc-100 flex items-center justify-center text-zinc-600 hover:bg-zinc-200 hover:text-zinc-900 active:scale-95 transition-all outline-none cursor-pointer"
           onClick={(e) => { e.preventDefault(); e.stopPropagation(); onClose(); }}
@@ -227,61 +231,133 @@ export default function ArticleSheet({ isOpen, onClose, post }: ArticleSheetProp
             dangerouslySetInnerHTML={{
               __html: DOMPurify.sanitize(post.body || '')
             }}
-          />
-
-          {guidePdfUrl && (
-            <div className="mt-12 bg-amber-50/30 rounded-[28px] p-8 border border-amber-200/50 relative overflow-hidden">
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 relative z-10">
-                <div className="flex-1">
-                  <h3 className="text-base font-black text-zinc-900 leading-tight mb-1.5">
-                    Unlock the deep Bali <br className="hidden md:block" /> insider&apos;s experience
+          />          {/* Paid Guide: LemonSqueezy Buy Button */}
+          {hasPaidGuide && (
+            <div className="mt-12 bg-amber-50/40 rounded-[32px] p-6 sm:p-8 border border-amber-200/50 relative overflow-hidden">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 relative z-10">
+                <div className="flex-1 flex flex-col items-start leading-none">
+                  <span className="mb-3 px-2 py-0.5 bg-amber-500 text-white text-[8px] font-black rounded-full uppercase tracking-widest">Premium Guide</span>
+                  <h3 className="text-lg font-black text-zinc-900 tracking-tight mb-2">
+                    Unlock the deep {post.title} insider&apos;s experience
                   </h3>
-                  <p className="text-[10px] text-zinc-600 leading-relaxed max-w-[240px]">
+                  <p className="text-[10px] text-zinc-500 leading-relaxed max-w-[280px]">
                     Exclusive routes, local etiquette, and hidden spots curated for the curious traveler.
                   </p>
                 </div>
-                <div className="shrink-0 flex flex-col items-start md:items-end gap-3">
-                  <div className="text-right hidden md:block">
-                    <p className="text-[9px] font-bold text-zinc-400 mb-0.5">Special Price</p>
-                    <p className="text-sm font-black text-zinc-900 tracking-tighter">Rp {post.guidePrice}</p>
-                  </div>
+                <div className="shrink-0 flex flex-col items-stretch sm:items-end gap-5">
+                  {post.guidePrice && (
+                    <div className="flex items-center gap-2 sm:justify-end leading-none">
+                      <span className="text-[14px] font-medium text-amber-900/60">Price</span>
+                      <span className="px-2.5 py-1.5 bg-white border border-amber-200 rounded-xl text-base font-bold text-zinc-900 tracking-tighter shadow-sm">
+                        {post.guidePrice}
+                      </span>
+                    </div>
+                  )}
                   <a
-                    href={guidePdfUrl}
+                    href={lemonSqueezyUrl!}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-full sm:w-auto px-8 py-4.5 bg-amber-500 text-white rounded-2xl text-[11px] font-black hover:bg-amber-600 active:scale-95 transition-all shadow-xl shadow-amber-500/30 flex items-center justify-center gap-2.5 group whitespace-nowrap"
+                  >
+                    <span>Buy Premium Guide</span>
+                    <svg className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" fill="none" stroke="currentColor" strokeWidth="3" viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7" /></svg>
+                  </a>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Free Guide: Direct PDF Download */}
+          {hasFreeGuide && (
+            <div className="mt-12 bg-zinc-50 border border-black/[0.03] rounded-[32px] p-6 sm:p-8 relative overflow-hidden">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 relative z-10">
+                <div className="flex-1 flex flex-col items-start leading-none">
+                  <span className="mb-3 px-2 py-0.5 bg-zinc-900 text-white text-[8px] font-black rounded-full uppercase tracking-widest">Free Guide</span>
+                  <h3 className="text-lg font-black text-zinc-900 tracking-tight mb-2">
+                    Unlock the deep {post.title} insider&apos;s experience
+                  </h3>
+                  <p className="text-[10px] text-zinc-500 font-medium leading-relaxed max-w-[280px]">
+                    Exclusive routes, local etiquette, and hidden spots curated for the curious traveler.
+                  </p>
+                </div>
+                <div className="shrink-0">
+                  <a
+                    href={guidePdfUrl!}
                     download
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="px-6 py-3 bg-zinc-900 text-white rounded-xl text-[10px] font-black hover:bg-zinc-800 active:scale-95 transition-all shadow-xl shadow-zinc-900/10 flex items-center gap-2 group"
+                    className="w-full sm:w-auto px-8 py-4.5 bg-zinc-900 text-white rounded-2xl text-[11px] font-black hover:bg-black active:scale-95 transition-all shadow-xl shadow-zinc-900/30 flex items-center justify-center gap-2.5 group whitespace-nowrap"
                   >
-                    <span>Download the Guide</span>
-                    <svg className="w-3 h-3 text-amber-400 group-hover:translate-y-0.5 transition-transform" fill="none" stroke="currentColor" strokeWidth="3" viewBox="0 0 24 24"><path d="M12 5v14M19 12l-7 7-7-7" /></svg>
+                    <span>Download Free Guide</span>
+                    <svg className="w-3.5 h-3.5 text-emerald-400 group-hover:translate-y-0.5 transition-transform" fill="none" stroke="currentColor" strokeWidth="3" viewBox="0 0 24 24"><path d="M12 5v14M19 12l-7 7-7-7" /></svg>
                   </a>
-                  <p className="text-[9px] font-bold text-zinc-400 md:hidden">Price: Rp {post.guidePrice}</p>
                 </div>
               </div>
             </div>
           )}
 
           {(post as any).googleMapsUrl && (
-            <div className="mt-6 bg-blue-50/50 rounded-2xl p-6 border border-blue-100/50 flex flex-col md:flex-row md:items-center justify-between gap-4 transition-colors hover:bg-blue-50">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center text-blue-600 shrink-0">
-                  <svg className="w-5 h-5 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="10" r="3"/><path d="M12 21.7C17.3 17 20 13 20 10a8 8 0 1 0-16 0c0 3 2.7 7 8 11.7z"/></svg>
-                </div>
-                <div>
-                  <h3 className="text-sm font-black text-zinc-900 tracking-tight leading-none mb-1">View Location</h3>
-                  <p className="text-[10px] text-zinc-500 font-medium">Open pinning in Google Maps</p>
-                </div>
+            <div className="mt-6 bg-blue-50/30 rounded-[24px] border border-blue-100/50 overflow-hidden flex flex-col">
+              {/* Interactive Iframe Map */}
+              <div className="w-full h-[250px] sm:h-[300px] relative bg-zinc-100 pointer-events-auto">
+                <iframe
+                  width="100%"
+                  height="100%"
+                  style={{ border: 0 }}
+                  loading="lazy"
+                  allowFullScreen
+                  referrerPolicy="no-referrer-when-downgrade"
+                  src={`https://maps.google.com/maps?q=${encodeURIComponent(
+                    post.venue || post.title
+                  )}&t=&z=14&ie=UTF8&iwloc=&output=embed`}
+                  className="w-full h-full"
+                  title={`Map showing ${post.title}`}
+                />
               </div>
-              <a 
-                href={(post as any).googleMapsUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="px-5 py-2.5 bg-blue-600 text-white rounded-xl text-[10px] font-black hover:bg-blue-700 active:scale-95 transition-all shadow-md shadow-blue-600/20 text-center md:w-auto"
-              >
-                Open Maps
-              </a>
+
+              {/* Bottom Actions */}
+              <div className="p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-colors hover:bg-blue-50/50">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center text-blue-600 shrink-0">
+                    <svg className="w-5 h-5 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                      <circle cx="12" cy="10" r="3" />
+                      <path d="M12 21.7C17.3 17 20 13 20 10a8 8 0 1 0-16 0c0 3 2.7 7 8 11.7z" />
+                    </svg>
+                  </div>
+                  <div className="flex flex-col justify-center leading-none">
+                    <span className="text-sm font-black text-zinc-900 tracking-tight block">
+                      View Location
+                    </span>
+                    <span className="text-[10px] text-zinc-500 block -mt-[1px]">
+                      Open pinning directly in Google Maps
+                    </span>
+                  </div>
+                </div>
+                <a
+                  href={(post as any).googleMapsUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-5 py-2.5 bg-blue-600 text-white rounded-xl text-[10px] font-black hover:bg-blue-700 active:scale-95 transition-all shadow-md shadow-blue-600/20 text-center sm:w-auto w-full flex items-center justify-center gap-2 group"
+                >
+                  <span>Open Maps</span>
+                  <svg className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" fill="none" stroke="currentColor" strokeWidth="3" viewBox="0 0 24 24"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+                </a>
+              </div>
             </div>
           )}
+
+          {/* Metadata Footer */}
+          <div className="mt-8 pt-6 border-t border-black/[0.04] flex items-center justify-between px-1">
+            <p className="text-[6px] font-medium text-gray-400">
+              Posted {new Date(post.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}
+            </p>
+            {new Date(post.updatedAt).getTime() > new Date(post.createdAt).getTime() + 60000 && (
+              <p className="text-[6px] font-medium text-gray-400 text-right">
+                Updated {new Date(post.updatedAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}
+              </p>
+            )}
+          </div>
+
         </div>
       )}
     </div>

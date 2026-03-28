@@ -34,7 +34,7 @@ export async function POST(request: Request) {
     const { 
       locationId, province, hashtagIds, title, tagline, 
       likes, bestTime, howToGet, cost, body: contentBody, 
-      venue, images, guidePdfUrl, guidePrice, googleMapsUrl, isDraft 
+      venue, images, guidePdfUrl, lemonSqueezyUrl, guidePrice, googleMapsUrl, isDraft 
     } = body;
 
     // Get names for backward compatibility fields if needed
@@ -69,6 +69,7 @@ export async function POST(request: Request) {
         venue,
         // Store guide fields if provided. Convert '' to null so the UI can use truthy checks.
         guidePdfUrl: guidePdfUrl || null,
+        lemonSqueezyUrl: lemonSqueezyUrl || null,
         guidePrice: guidePrice || null,
         googleMapsUrl: googleMapsUrl || null,
         isDraft: isDraft || false,

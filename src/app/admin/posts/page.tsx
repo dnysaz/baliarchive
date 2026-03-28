@@ -116,10 +116,19 @@ export default function AdminPosts() {
               </div>
             )}
             
-            <Link href={`/?post=${post.slug || post.id}`} className="absolute inset-0 z-0 cursor-pointer" />
+            {post.isDraft ? (
+              <div className="absolute inset-0 z-0 cursor-not-allowed" title="Draft posts cannot be viewed publicly yet" />
+            ) : (
+              <Link href={`/?post=${post.slug || post.id}`} className="absolute inset-0 z-0 cursor-pointer" />
+            )}
             
             <div className="absolute inset-0 pointer-events-none bg-gradient-to-t from-black/70 via-black/20 to-transparent opacity-90 group-hover:opacity-100 transition-opacity duration-500 flex flex-col justify-end p-4">
               <div className="flex flex-wrap gap-1 mb-2">
+                {post.isDraft && (
+                  <span className="px-2 py-0.5 bg-zinc-800 text-white text-[9px] font-bold rounded-full shadow-lg">
+                    DRAFT
+                  </span>
+                )}
                 <span className="px-2 py-0.5 bg-amber-500 text-white text-[9px] font-bold rounded-full shadow-lg transition-transform active:scale-95">
                   #{post.hashtags?.[0]?.name || 'Untagged'}
                   {post.hashtags?.length > 1 && ` +${post.hashtags.length - 1}`}

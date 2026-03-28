@@ -3,7 +3,7 @@
 import React from 'react';
 import type { Prisma } from '@prisma/client';
 
-type Post = Prisma.PostGetPayload<{ include: { images: true } }>;
+type Post = Prisma.PostGetPayload<{ include: { images: true, hashtags: true } }>;
 
 interface SavedPageProps {
   isOpen: boolean;

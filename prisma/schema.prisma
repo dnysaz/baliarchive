@@ -45,6 +45,7 @@ model Post {
   body          String
   venue         String?
   guidePdfUrl   String?
+  lemonSqueezyUrl String?
   guidePrice    String?
   googleMapsUrl String?
   isDraft       Boolean   @default(false)

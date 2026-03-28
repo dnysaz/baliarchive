@@ -11,21 +11,21 @@ async function main() {
   for (const post of posts) {
     // 2. Ensure location exists
     let location = await (prisma as any).location.findUnique({
-      where: { name: post.kabupaten }
+      where: { name: (post as any).kabupaten }
     });
     if (!location) {
       location = await (prisma as any).location.create({
-        data: { name: post.kabupaten }
+        data: { name: (post as any).kabupaten }
       });
     }
 
     // 3. Ensure hashtag exists
     let hashtag = await (prisma as any).hashtag.findUnique({
-      where: { name: post.category }
+      where: { name: (post as any).category }
     });
     if (!hashtag) {
       hashtag = await (prisma as any).hashtag.create({
-        data: { name: post.category }
+        data: { name: (post as any).category }
       });
     }
 

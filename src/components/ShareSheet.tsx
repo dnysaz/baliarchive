@@ -9,7 +9,7 @@ interface ShareSheetProps {
   post: {
     title: string;
     tagline: string;
-    slug?: string;
+    slug?: string | null;
     id: number;
   } | null;
 }
