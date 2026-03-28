@@ -34,7 +34,7 @@ export async function POST(request: Request) {
     const { 
       locationId, province, hashtagIds, title, tagline, 
       likes, bestTime, howToGet, cost, body: contentBody, 
-      venue, images, guidePdfUrl, lemonSqueezyUrl, guidePrice, googleMapsUrl, isDraft 
+      venue, images, guidePdfUrl, lemonSqueezyUrl, guidePrice, googleMapsUrl, isDraft, isAd, advertiserName 
     } = body;
 
     // Get names for backward compatibility fields if needed
@@ -73,6 +73,8 @@ export async function POST(request: Request) {
         guidePrice: guidePrice || null,
         googleMapsUrl: googleMapsUrl || null,
         isDraft: isDraft || false,
+        isAd: isAd || false,
+        advertiserName: advertiserName || null,
         // Use relation connect to avoid runtime mismatch with scalar fields.
         location: { connect: { id: locationId } },
         hashtags: { 

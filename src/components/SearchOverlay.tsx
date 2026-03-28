@@ -35,17 +35,19 @@ export default function SearchOverlay({ isOpen, onClose, searchQuery, setSearchQ
     const cleanTagQuery = lowerQuery.startsWith('#') ? lowerQuery.slice(1) : lowerQuery;
 
     return allPosts.filter(p =>
-      p.title.toLowerCase().includes(lowerQuery) ||
-      p.kabupaten.toLowerCase().includes(lowerQuery) ||
-      (p.location?.name && p.location.name.toLowerCase().includes(lowerQuery)) ||
-      p.tagline.toLowerCase().includes(lowerQuery) ||
-      (p.venue && p.venue.toLowerCase().includes(lowerQuery)) ||
-      (p.hashtags && p.hashtags.some((h: any) => h.name.toLowerCase().includes(cleanTagQuery)))
+      !p.isAd && (
+        p.title.toLowerCase().includes(lowerQuery) ||
+        p.kabupaten.toLowerCase().includes(lowerQuery) ||
+        (p.location?.name && p.location.name.toLowerCase().includes(lowerQuery)) ||
+        p.tagline.toLowerCase().includes(lowerQuery) ||
+        (p.venue && p.venue.toLowerCase().includes(lowerQuery)) ||
+        (p.hashtags && p.hashtags.some((h: any) => h.name.toLowerCase().includes(cleanTagQuery)))
+      )
     ).slice(0, 8);
   }, [searchQuery, allPosts]);
 
   const popularPosts = useMemo(() => {
-    return [...allPosts].sort((a, b) => (b.likes ?? 0) - (a.likes ?? 0)).slice(0, 5);
+    return [...allPosts].filter(p => !p.isAd).sort((a, b) => (b.likes ?? 0) - (a.likes ?? 0)).slice(0, 5);
   }, [allPosts]);
 
   return (

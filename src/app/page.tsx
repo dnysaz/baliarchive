@@ -56,11 +56,52 @@ export async function generateMetadata({ searchParams }: Props): Promise<Metadat
 }
 
 export default async function Home({ searchParams }: Props) {
-  const posts = await prisma.post.findMany({
-    where: { isDraft: false },
+  const { post: postSlug } = await searchParams;
+
+  // Fetch regular posts
+  const regularPosts = await prisma.post.findMany({
+    where: { isDraft: false, isAd: false },
     include: { images: true, hashtags: true, location: true },
     orderBy: { createdAt: 'desc' },
   });
 
-  return <BaliArchive initialData={posts} />;
+  // Fetch all ads
+  const ads = await prisma.post.findMany({
+    where: { isDraft: false, isAd: true },
+    include: { images: true, hashtags: true, location: true },
+  });
+
+  // Interleave ads into regular posts
+  let feedData = [...regularPosts];
+  if (ads.length > 0) {
+    // If there are very few regular posts, just add one ad at the end or random spot safely
+    if (feedData.length < 5) {
+      feedData.splice(Math.floor(Math.random() * (feedData.length + 1)), 0, ads[Math.floor(Math.random() * ads.length)]);
+    } else {
+      let insertIndex = Math.floor(Math.random() * 5) + 5; // First ad at index 5-10
+      let adIndex = 0;
+      const shuffledAds = [...ads].sort(() => 0.5 - Math.random());
+  
+      while (insertIndex <= feedData.length) {
+        feedData.splice(insertIndex, 0, shuffledAds[adIndex % shuffledAds.length]);
+        adIndex++;
+        insertIndex += Math.floor(Math.random() * 6) + 5; 
+      }
+    }
+  }
+
+  // Ensure requested post exists in feedData
+  if (postSlug) {
+    const isNum = !isNaN(Number(postSlug));
+    const targetPost = await prisma.post.findFirst({
+      where: { OR: [{ slug: postSlug }, { id: isNum ? Number(postSlug) : -1 }] },
+      include: { images: true, hashtags: true, location: true },
+    });
+
+    if (targetPost && !feedData.some(p => p.id === targetPost.id)) {
+      feedData.unshift(targetPost); // Inject requested post so it's not "Missing"
+    }
+  }
+
+  return <BaliArchive initialData={feedData} />;
 }

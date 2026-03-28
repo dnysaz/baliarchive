@@ -34,6 +34,7 @@ export default function AdminDashboard() {
   const [stats, setStats] = useState({ posts: 0, locations: 0, hashtags: 0 });
   const [globalStats, setGlobalStats] = useState({ views: 0, likes: 0, saves: 0 });
   const [topPosts, setTopPosts] = useState<any[]>([]);
+  const [topAds, setTopAds] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -67,9 +68,11 @@ export default function AdminDashboard() {
           const totalSaves = posts.reduce((acc, p) => acc + (p.saves || 0), 0);
           setGlobalStats({ views: totalViews, likes: totalLikes, saves: totalSaves });
 
-          // Sort by views desc for top posts display
-          const sorted = [...posts].sort((a, b) => (b.views || 0) - (a.views || 0)).slice(0, 10);
-          setTopPosts(sorted);
+          // Sort by views desc for top posts display (showing all items) separated by type
+          const sortedPosts = [...posts].filter(p => !p.isAd).sort((a, b) => (b.views || 0) - (a.views || 0));
+          const sortedAds = [...posts].filter(p => !!p.isAd).sort((a, b) => (b.views || 0) - (a.views || 0));
+          setTopPosts(sortedPosts);
+          setTopAds(sortedAds);
         }
       } catch (err) {
         console.error(err);
@@ -81,36 +84,31 @@ export default function AdminDashboard() {
   }, []);
 
   // Prepare chart data for 5 different lines (top 5 posts)
-  const chartData = useMemo(() => {
+  // Prepare chart data function for dynamic arrays
+  const getChartData = (targetList: any[]) => {
     const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-    const currentDayIndex = new Date().getDay(); // 0 is Sun, 1 is Mon...
-    // Adjust index so Mon is 0, Tue is 1, ..., Sun is 6
+    const currentDayIndex = new Date().getDay();
     const adjustedIndex = currentDayIndex === 0 ? 6 : currentDayIndex - 1;
     
     const labels = days.slice(0, adjustedIndex + 1);
     const colors = ['#f59e0b', '#3b82f6', '#10b981', '#ef4444', '#8b5cf6'];
-    
-    // Take top 5 for the multi-line chart
-    const targetPosts = topPosts.slice(0, 5);
+    const targetPosts = targetList.slice(0, 5);
     
     const datasets = targetPosts.map((post, index) => {
       const currentViews = post.views || 0;
       const createdAt = new Date(post.createdAt);
       const createdDayIndex = createdAt.getDay();
-      // Adjust createdDayIndex so Mon is 0, ..., Sun is 6
       const adjustedCreatedIndex = createdDayIndex === 0 ? 6 : createdDayIndex - 1;
       
       const dataPoints = [];
       const totalPoints = adjustedIndex + 1;
       
       for (let i = 0; i < totalPoints; i++) {
-        // If the day index is before the creation day, views must be 0
         if (i < adjustedCreatedIndex) {
           dataPoints.push(0);
         } else if (i === totalPoints - 1) {
-          dataPoints.push(currentViews); // Today's actual total
+          dataPoints.push(currentViews);
         } else {
-          // Linear simulation from creation day to today
           const totalLifeSpanDays = (totalPoints - 1) - adjustedCreatedIndex;
           if (totalLifeSpanDays <= 0) {
             dataPoints.push(0);
@@ -136,7 +134,11 @@ export default function AdminDashboard() {
     });
 
     return { labels, datasets };
-  }, [topPosts]);
+  };
+
+  const chartDataRegular = useMemo(() => getChartData(topPosts), [topPosts]);
+  const chartDataAds = useMemo(() => getChartData(topAds), [topAds]);
+
 
   const chartOptions = {
     responsive: true,
@@ -181,6 +183,102 @@ export default function AdminDashboard() {
     </div>
   );
 
+  const renderLeaderboard = (title: string, subtitle: string, items: any[]) => (
+    <div>
+      <div className="flex items-center justify-between mb-8">
+        <div>
+          <h2 className="text-2xl font-black text-zinc-900 tracking-tight leading-none mb-2">{title}</h2>
+          <p className="text-zinc-400 text-xs font-semibold tracking-widest uppercase">{subtitle}</p>
+        </div>
+      </div>
+
+      <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
+        <table className="w-full text-left">
+          <thead>
+            <tr className="bg-zinc-50 border-b border-zinc-100/50">
+              <th className="px-10 py-5 text-[10px] font-black text-zinc-400 uppercase tracking-widest">Rank</th>
+              <th className="px-10 py-5 text-[10px] font-black text-zinc-400 uppercase tracking-widest">Content Mapping</th>
+              <th className="px-10 py-5 text-[10px] font-black text-zinc-400 uppercase tracking-widest">KPI Metrics</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-zinc-100/50">
+            {items.length > 0 ? items.map((post, idx) => (
+              <tr key={post.id} className="hover:bg-zinc-50/50 transition-colors group">
+                <td className="px-10 py-6">
+                  <span className={`w-9 h-9 rounded-xl flex items-center justify-center text-[13px] font-black ${
+                    idx === 0 ? 'bg-amber-500 text-white' : 
+                    idx === 1 ? 'bg-zinc-900 text-white' : 
+                    idx === 2 ? 'bg-zinc-200 text-zinc-600' : 
+                    'bg-zinc-100 text-zinc-400'
+                  }`}>
+                    {idx + 1}
+                  </span>
+                </td>
+                <td className="px-10 py-6">
+                  <div className="flex items-center gap-5">
+                    <div className="w-14 h-14 rounded-xl bg-zinc-100 overflow-hidden shrink-0 border border-gray-200 relative transition-all">
+                      {post.images?.[0] ? (
+                        post.images[0].type === 'VIDEO' ? (
+                          <div className="w-full h-full relative">
+                            <video src={post.images[0].url} className="w-full h-full object-cover grayscale-[30%] group-hover:grayscale-0 transition-all duration-500 scale-105 group-hover:scale-100" muted loop autoPlay playsInline />
+                            <div className="absolute top-1 right-1 w-4 h-4 rounded-full bg-black/40 backdrop-blur-sm flex items-center justify-center">
+                              <svg width="8" height="8" viewBox="0 0 24 24" fill="white"><path d="M8 5v14l11-7z"/></svg>
+                            </div>
+                          </div>
+                        ) : (
+                          <img src={post.images[0].url} alt="" className="w-full h-full object-cover grayscale-[30%] group-hover:grayscale-0 transition-all duration-500 scale-105 group-hover:scale-100" />
+                        )
+                      ) : null}
+                    </div>
+                    <div className="min-w-0">
+                      <Link 
+                        href={`/?post=${post.slug || post.id}`}
+                        target="_blank"
+                        className="font-bold text-zinc-900 text-base truncate hover:text-amber-500 transition-colors tracking-tight flex items-center gap-1.5"
+                      >
+                        {post.title}
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
+                      </Link>
+                      <p className="text-[10px] font-bold text-zinc-400 tracking-widest uppercase mt-0.5">{post.kabupaten}</p>
+                    </div>
+                  </div>
+                </td>
+                <td className="px-10 py-6">
+                  <div className="flex flex-col gap-2.5">
+                    <div className="flex items-center gap-3">
+                      <div className="w-40 h-2.5 bg-zinc-100 rounded-full overflow-hidden">
+                        <div 
+                          className="h-full bg-amber-500 transition-all duration-1000 ease-out" 
+                          style={{ width: `${Math.min(100, (post.views / (items[0]?.views || 1)) * 100)}%` }}
+                        />
+                      </div>
+                      <span className="text-[15px] font-black text-zinc-900 tabular-nums leading-none tracking-tighter">{post.views || 0}</span>
+                      <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Reach</span>
+                    </div>
+                    <div className="flex items-center gap-5">
+                      <div className="flex items-center gap-1.5">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="#ef4444"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+                        <span className="text-[11px] font-black text-zinc-500">{post.likes || 0}</span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="#3b82f6"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                        <span className="text-[11px] font-black text-zinc-500">{post.saves || 0}</span>
+                      </div>
+                    </div>
+                  </div>
+                </td>
+              </tr>
+            )) : (
+              <tr>
+                <td colSpan={3} className="px-10 py-24 text-center text-zinc-400 font-medium italic">Establishing digital footprint...</td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+
   return (
     <div className="max-w-7xl animate-in fade-in duration-500">
       <div className="mb-10 flex items-center justify-between">
@@ -190,35 +288,59 @@ export default function AdminDashboard() {
         </div>
         <Link 
           href="/admin/posts/new" 
-          className="inline-flex items-center justify-center px-6 py-3 bg-zinc-900 text-white font-bold text-sm hover:bg-black transition-all active:scale-[0.98] rounded-2xl shadow-xl shadow-black/10"
+          className="inline-flex items-center justify-center px-6 py-3 bg-zinc-900 text-white font-bold text-sm hover:bg-black transition-all active:scale-[0.98] rounded-xl"
         >
           Add Destination
         </Link>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-12">
-        <div className="lg:col-span-2 bg-white p-8 rounded-[40px] border border-black/5 shadow-sm">
-          <div className="flex items-center justify-between mb-8">
-            <div>
-              <h2 className="text-xl font-black text-zinc-900 tracking-tight leading-none mb-1">Growth Forecast</h2>
-              <p className="text-[10px] font-bold text-zinc-400 tracking-widest uppercase">7-Day trending signals per top posting</p>
-            </div>
-            <span className="px-3 py-1 bg-amber-500/10 text-amber-600 text-[10px] font-black rounded-full uppercase tracking-widest">Real-time Feed</span>
-          </div>
-          <div className="h-[320px] w-full">
-            {topPosts.length > 0 ? (
-              <Line data={chartData} options={chartOptions as any} />
-            ) : (
-              <div className="h-full flex flex-col items-center justify-center bg-zinc-50 rounded-[32px] border border-dashed border-zinc-200">
-                <p className="text-sm font-bold text-zinc-400 italic">Awating data signals...</p>
-                <p className="text-[10px] text-zinc-400 mt-1 uppercase tracking-widest font-bold">Views will appear once visitors explore the feed</p>
+        <div className="lg:col-span-2 flex flex-col gap-8">
+          {/* Regular Posts Chart */}
+          <div className="bg-white p-8 rounded-2xl border border-gray-200">
+            <div className="flex items-center justify-between mb-8">
+              <div>
+                <h2 className="text-xl font-black text-zinc-900 tracking-tight leading-none mb-1">Regular Content Forecast</h2>
+                <p className="text-[10px] font-bold text-zinc-400 tracking-widest uppercase">7-Day trending signals per top posting</p>
               </div>
-            )}
+              <span className="px-3 py-1 bg-amber-500/10 text-amber-600 text-[10px] font-black rounded-full uppercase tracking-widest">Organic Feed</span>
+            </div>
+            <div className="h-[320px] w-full">
+              {topPosts.length > 0 ? (
+                <Line data={chartDataRegular} options={chartOptions as any} />
+              ) : (
+                <div className="h-full flex flex-col items-center justify-center bg-zinc-50 rounded-2xl border border-dashed border-zinc-200">
+                  <p className="text-sm font-bold text-zinc-400 italic">Awating data signals...</p>
+                  <p className="text-[10px] text-zinc-400 mt-1 uppercase tracking-widest font-bold">Views will appear once visitors explore the feed</p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Ads Chart */}
+          <div className="bg-white p-8 rounded-2xl border border-gray-200">
+            <div className="flex items-center justify-between mb-8">
+              <div>
+                <h2 className="text-xl font-black text-zinc-900 tracking-tight leading-none mb-1">Advertisement Growth</h2>
+                <p className="text-[10px] font-bold text-zinc-400 tracking-widest uppercase">7-Day trending signals for sponsors</p>
+              </div>
+              <span className="px-3 py-1 bg-blue-500/10 text-blue-600 text-[10px] font-black rounded-full uppercase tracking-widest">Sponsored Feed</span>
+            </div>
+            <div className="h-[320px] w-full">
+              {topAds.length > 0 ? (
+                <Line data={chartDataAds} options={chartOptions as any} />
+              ) : (
+                <div className="h-full flex flex-col items-center justify-center bg-zinc-50 rounded-2xl border border-dashed border-zinc-200">
+                  <p className="text-sm font-bold text-zinc-400 italic">Awating sponsor data...</p>
+                  <p className="text-[10px] text-zinc-400 mt-1 uppercase tracking-widest font-bold">Ad growth will be tracked here</p>
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
         <div className="grid grid-cols-1 gap-4">
-          <div className="p-7 bg-white rounded-[32px] border border-black/5 shadow-sm flex flex-col justify-center relative overflow-hidden group">
+          <div className="p-7 bg-white rounded-2xl border border-gray-200 flex flex-col justify-center relative overflow-hidden group">
             <div className="relative z-10">
               <p className="text-xs font-bold text-zinc-400 uppercase tracking-widest mb-1">Public Destinations</p>
               <h3 className="text-4xl font-black text-zinc-900 tracking-tight">{stats.posts}</h3>
@@ -228,14 +350,14 @@ export default function AdminDashboard() {
               </div>
             </div>
           </div>
-          <div className="p-7 bg-white rounded-[32px] border border-black/5 shadow-sm flex flex-col justify-center">
+          <div className="p-7 bg-white rounded-2xl border border-gray-200 flex flex-col justify-center">
             <p className="text-xs font-bold text-zinc-400 uppercase tracking-widest mb-1">Digital Reach</p>
             <h3 className="text-4xl font-black text-zinc-900 tracking-tight">{globalStats.views}</h3>
             <div className="mt-4 flex items-center gap-1.5 text-zinc-400 font-bold text-[10px] tracking-widest uppercase">
               Total Impression Accumulation
             </div>
           </div>
-          <div className="p-7 bg-white rounded-[32px] border border-black/5 shadow-sm flex flex-col justify-center">
+          <div className="p-7 bg-white rounded-2xl border border-gray-200 flex flex-col justify-center">
             <p className="text-xs font-bold text-zinc-400 uppercase tracking-widest mb-1">User Engagement</p>
             <div className="flex items-center gap-8 mt-1">
               <div>
@@ -252,89 +374,9 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      <div>
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <h2 className="text-2xl font-black text-zinc-900 tracking-tight leading-none mb-2">Performance Leaderboard</h2>
-            <p className="text-zinc-400 text-xs font-semibold tracking-widest uppercase">Top converting items in the archive</p>
-          </div>
-        </div>
-
-        <div className="bg-white border border-black/5 rounded-[40px] overflow-hidden shadow-sm">
-          <table className="w-full text-left">
-            <thead>
-              <tr className="bg-zinc-50 border-b border-zinc-100/50">
-                <th className="px-10 py-5 text-[10px] font-black text-zinc-400 uppercase tracking-widest">Rank</th>
-                <th className="px-10 py-5 text-[10px] font-black text-zinc-400 uppercase tracking-widest">Content Mapping</th>
-                <th className="px-10 py-5 text-[10px] font-black text-zinc-400 uppercase tracking-widest">KPI Metrics</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-zinc-100/50">
-              {topPosts.length > 0 ? topPosts.map((post, idx) => (
-                <tr key={post.id} className="hover:bg-zinc-50/50 transition-colors group">
-                  <td className="px-10 py-6">
-                    <span className={`w-9 h-9 rounded-xl flex items-center justify-center text-[13px] font-black ${
-                      idx === 0 ? 'bg-amber-500 text-white shadow-lg shadow-amber-500/20' : 
-                      idx === 1 ? 'bg-zinc-900 text-white' : 
-                      idx === 2 ? 'bg-zinc-200 text-zinc-600' : 
-                      'bg-zinc-100 text-zinc-400'
-                    }`}>
-                      {idx + 1}
-                    </span>
-                  </td>
-                  <td className="px-10 py-6">
-                    <div className="flex items-center gap-5">
-                      <div className="w-14 h-14 rounded-2xl bg-zinc-100 overflow-hidden shrink-0 border border-black/5">
-                        {post.images?.[0] && (
-                          <img src={post.images[0].url} alt="" className="w-full h-full object-cover grayscale-[30%] group-hover:grayscale-0 transition-all duration-500 scale-105 group-hover:scale-100" />
-                        )}
-                      </div>
-                      <div className="min-w-0">
-                        <Link 
-                          href={`/?post=${post.slug || post.id}`}
-                          target="_blank"
-                          className="font-bold text-zinc-900 text-base truncate hover:text-amber-500 transition-colors tracking-tight flex items-center gap-1.5"
-                        >
-                          {post.title}
-                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
-                        </Link>
-                        <p className="text-[10px] font-bold text-zinc-400 tracking-widest uppercase mt-0.5">{post.kabupaten}</p>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-10 py-6">
-                    <div className="flex flex-col gap-2.5">
-                      <div className="flex items-center gap-3">
-                        <div className="w-40 h-2.5 bg-zinc-100 rounded-full overflow-hidden">
-                          <div 
-                            className="h-full bg-amber-500 transition-all duration-1000 ease-out" 
-                            style={{ width: `${Math.min(100, (post.views / (topPosts[0]?.views || 1)) * 100)}%` }}
-                          />
-                        </div>
-                        <span className="text-[15px] font-black text-zinc-900 tabular-nums leading-none tracking-tighter">{post.views || 0}</span>
-                        <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Reach</span>
-                      </div>
-                      <div className="flex items-center gap-5">
-                        <div className="flex items-center gap-1.5">
-                          <svg width="12" height="12" viewBox="0 0 24 24" fill="#ef4444"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
-                          <span className="text-[11px] font-black text-zinc-500">{post.likes || 0}</span>
-                        </div>
-                        <div className="flex items-center gap-1.5">
-                          <svg width="12" height="12" viewBox="0 0 24 24" fill="#3b82f6"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
-                          <span className="text-[11px] font-black text-zinc-500">{post.saves || 0}</span>
-                        </div>
-                      </div>
-                    </div>
-                  </td>
-                </tr>
-              )) : (
-                <tr>
-                  <td colSpan={3} className="px-10 py-24 text-center text-zinc-400 font-medium italic">Establishing digital footprint...</td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+      <div className="flex flex-col gap-16">
+        {renderLeaderboard("Regular Content Leaderboard", "Top converting organic items in the archive", topPosts)}
+        {renderLeaderboard("Advertisement Leaderboard", "Top converting sponsored campaigns", topAds)}
       </div>
     </div>
   );

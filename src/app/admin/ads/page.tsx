@@ -7,7 +7,7 @@ import Link from 'next/link';
 
 import ConfirmationModal from '@/components/ConfirmationModal';
 
-export default function AdminPosts() {
+export default function AdminAds() {
   const { status } = useSession();
   const router = useRouter();
   const [posts, setPosts] = useState<any[]>([]);
@@ -26,7 +26,7 @@ export default function AdminPosts() {
     try {
       const res = await fetch('/api/posts?admin=true');
       const data = await res.json();
-      setPosts(Array.isArray(data) ? data.filter((p: any) => !p.isAd) : []);
+      setPosts(Array.isArray(data) ? data.filter((p: any) => p.isAd) : []);
     } catch (err) {
       console.error(err);
       setPosts([]);
@@ -60,7 +60,7 @@ export default function AdminPosts() {
   const deletePost = (id: number) => {
     handleModalOpen(
       'Confirm Deletion',
-      'Are you sure you want to delete this destination? This action cannot be undone.',
+      'Are you sure you want to delete this advertisement? This action cannot be undone.',
       async () => {
         try {
           const res = await fetch(`/api/posts/${id}`, { method: 'DELETE' });
@@ -85,14 +85,14 @@ export default function AdminPosts() {
     <div className="max-w-7xl">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-12">
         <div>
-          <h1 className="text-4xl font-bold text-zinc-800 tracking-tight mb-1">Destinations</h1>
-          <p className="text-zinc-400 font-medium">Archive management feed</p>
+          <h1 className="text-4xl font-bold text-zinc-800 tracking-tight mb-1">Advertisements</h1>
+          <p className="text-zinc-400 font-medium">Sponsored feature management</p>
         </div>
         <Link 
-          href="/admin/posts/new" 
+          href="/admin/ads/new" 
           className="inline-flex items-center justify-center px-6 py-3 bg-amber-500 text-white font-semibold text-sm hover:bg-amber-600 transition-all active:scale-[0.98] rounded-lg shadow-lg shadow-amber-500/30"
         >
-          Add New Post
+          Add New Ad
         </Link>
       </div>
 
@@ -142,7 +142,7 @@ export default function AdminPosts() {
               
               <div className="pointer-events-auto flex items-center gap-2 mt-4 translate-y-4 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-300">
                 <Link 
-                  href={`/admin/posts/edit/${post.slug || post.id}`}
+                  href={`/admin/ads/edit/${post.slug || post.id}`}
                   className="flex-1 py-2 bg-white text-zinc-800 text-xs font-semibold text-center hover:bg-amber-500 hover:text-white transition-all rounded-md shadow-lg"
                 >
                   Edit
@@ -162,7 +162,7 @@ export default function AdminPosts() {
           <div className="col-span-full py-32 text-center border-2 border-dashed border-zinc-200 rounded-2xl">
             <h3 className="text-xl font-semibold text-zinc-400">Feed is Empty</h3>
             <Link 
-              href="/admin/posts/new" 
+              href="/admin/ads/new" 
               className="mt-6 inline-block text-sm font-semibold text-amber-600 hover:underline"
             >
               Upload first content

@@ -29,7 +29,7 @@ export async function PUT(
     const { 
       locationId, province, hashtagIds, title, tagline, 
       bestTime, howToGet, cost, body: contentBody, 
-      venue, images, guidePdfUrl, lemonSqueezyUrl, guidePrice, googleMapsUrl, isDraft 
+      venue, images, guidePdfUrl, lemonSqueezyUrl, guidePrice, googleMapsUrl, isDraft, isAd, advertiserName
     } = body;
 
     const location = await (prisma as any).location.findUnique({ where: { id: locationId } });
@@ -77,6 +77,8 @@ export async function PUT(
       guidePrice: guidePrice || null,
       googleMapsUrl: googleMapsUrl || null,
       isDraft: isDraft !== undefined ? isDraft : false,
+      isAd: isAd !== undefined ? isAd : false,
+      advertiserName: advertiserName || null,
       // Use relation connect to avoid runtime mismatch with scalar fields.
       location: { connect: { id: locationId } },
       hashtags: { 

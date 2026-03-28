@@ -7,6 +7,7 @@ import KabupatenDrawer from './KabupatenDrawer';
 import SavedPage from './SavedPage';
 import SearchOverlay from './SearchOverlay';
 import ShareSheet from './ShareSheet';
+import ToastContainer, { showToast } from './Toast';
 
 type Post = Prisma.PostGetPayload<{ include: { images: true, hashtags: true, location: true } }>;
 
@@ -297,6 +298,11 @@ const Card = ({
 
           <div className="flex items-end gap-4 relative">
             <div className="flex-1 min-w-0">
+              {item.isAd && (
+                <div className="inline-block mb-1.5 bg-amber-500/90 backdrop-blur-md text-white px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-widest shadow-lg shadow-amber-500/20">
+                  Sponsored {item.advertiserName && <span className="text-white/80 lowercase tracking-normal">by</span>} {item.advertiserName}
+                </div>
+              )}
               <div className="flex items-center gap-1.5 mb-2 pointer-events-auto no-tap flex-wrap">
                 {item.hashtags?.map((hash: any, i: number) => (
                   <React.Fragment key={hash.id || i}>
@@ -436,14 +442,14 @@ export default function BaliArchive({ initialData }: BaliArchiveProps) {
         if (res.ok) {
           const data = await res.json();
           setPosts(prev => prev.map(p => p.id === id ? { ...p, likes: data.likes } : p));
+          showToast('You liked this destination', 'like');
         }
       } catch (error) {
         console.error('Failed to like:', error);
       }
     } else {
       newLiked.delete(id);
-      // We don't have a decrement action yet, but user asked for +1 on click.
-      // Usually like/unlike is handled. For now I'll just follow the "+1" requirement.
+      showToast('Like removed', 'unlike');
     }
 
     setLikedPosts(newLiked);
@@ -465,12 +471,14 @@ export default function BaliArchive({ initialData }: BaliArchiveProps) {
         if (res.ok) {
           const data = await res.json();
           setPosts(prev => prev.map(p => p.id === id ? { ...p, saves: data.saves } : p));
+          showToast('Saved to your archive', 'save');
         }
       } catch (error) {
         console.error('Failed to save:', error);
       }
     } else {
       newSaved.delete(id);
+      showToast('Removed from archive', 'unsave');
     }
 
     setSavedPosts(newSaved);
@@ -635,8 +643,8 @@ export default function BaliArchive({ initialData }: BaliArchiveProps) {
       </header>
 
       <ArticleSheet isOpen={isSheetOpen} onClose={() => setSheetOpen(false)} post={activePost} onFilter={handleFilter} />
-      <KabupatenDrawer isOpen={isDrawerOpen} onClose={handleCloseDrawer} kabupatens={kabupatenList} setActiveKab={handleSelectKabupaten} activeKab={activeKabupaten} />
-      <SavedPage isOpen={isSavedOpen} onClose={handleCloseSaved} savedPosts={savedPostsData} onOpenPost={(post) => { handleSelectPost(post); handleCloseSaved(); }} />
+      <KabupatenDrawer isOpen={isDrawerOpen} onClose={handleCloseDrawer} kabupatens={kabupatenList} setActiveKab={handleSelectKabupaten} activeKab={activeKabupaten} ads={initialData.filter(p => p.isAd)} onSelectAd={(post) => { handleSelectPost(post); handleCloseDrawer(); }} />
+      <SavedPage isOpen={isSavedOpen} onClose={handleCloseSaved} savedPosts={savedPostsData} onOpenPost={(post) => { handleSelectPost(post); handleCloseSaved(); }} ads={initialData.filter(p => p.isAd)} />
       <SearchOverlay isOpen={isSearchOpen} onClose={handleCloseSearch} allPosts={posts} onSelectPost={handleSelectPost} searchQuery={searchQuery} setSearchQuery={setSearchQuery} />
       <ShareSheet isOpen={isShareOpen} onClose={handleCloseShare} post={sharePost} />
 
@@ -663,6 +671,7 @@ export default function BaliArchive({ initialData }: BaliArchiveProps) {
           </div>
         </div>
       )}
+      <ToastContainer />
     </>
   );
 }

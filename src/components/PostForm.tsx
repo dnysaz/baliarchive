@@ -38,12 +38,11 @@ const ToolbarButton = ({
   </button>
 );
 
-const LOCAL_STORAGE_KEY = 'baliarchive_draft_post';
-
-export default function PostForm() {
+export default function PostForm({ isAdForm = false }: { isAdForm?: boolean }) {
   const router = useRouter();
   const params = useParams();
   const isEdit = !!params?.id;
+  const storageKey = isAdForm ? 'baliarchive_draft_ad' : 'baliarchive_draft_post';
 
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -66,7 +65,9 @@ export default function PostForm() {
     lemonSqueezyUrl: '',
     guidePrice: '',
     googleMapsUrl: '',
-    isDraft: false
+    isDraft: false,
+    isAd: isAdForm,
+    advertiserName: ''
   });
 
   const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({});
@@ -125,9 +126,9 @@ export default function PostForm() {
   // --- Autosave ---
   useEffect(() => {
     if (!loading && !isEdit) {
-      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(formData));
+      localStorage.setItem(storageKey, JSON.stringify(formData));
     }
-  }, [formData, loading, isEdit]);
+  }, [formData, loading, isEdit, storageKey]);
 
   // --- Unload Warning ---
   useEffect(() => {
@@ -178,6 +179,8 @@ export default function PostForm() {
               images: postData.images?.length > 0 ? postData.images.map((img: any) => ({ url: img.url, type: img.type || 'IMAGE' })) : [],
               googleMapsUrl: postData.googleMapsUrl || '',
               isDraft: postData.isDraft || false,
+              isAd: postData.isAd || isAdForm,
+              advertiserName: postData.advertiserName || ''
             });
             if (editor && postData.body) {
               editor.commands.setContent(postData.body);
@@ -185,12 +188,12 @@ export default function PostForm() {
           }
         } else {
           // Check local storage
-          const savedDraft = localStorage.getItem(LOCAL_STORAGE_KEY);
+          const savedDraft = localStorage.getItem(storageKey);
           let parsedDraft: any = null;
           if (savedDraft) {
             try {
               parsedDraft = JSON.parse(savedDraft);
-              setFormData(parsedDraft);
+              setFormData({ ...parsedDraft, isAd: isAdForm });
               if (editor && parsedDraft.body) {
                 editor.commands.setContent(parsedDraft.body);
               }
@@ -410,6 +413,8 @@ export default function PostForm() {
           guidePrice: formData.guidePrice?.trim() || null,
           googleMapsUrl: formData.googleMapsUrl?.trim() || null,
           isDraft: asDraft,
+          isAd: formData.isAd,
+          advertiserName: formData.advertiserName?.trim() || null,
           images: validMedia, // Sends array of {url, type} objects
           locationId: parseInt(formData.locationId),
           hashtagIds: formData.hashtagIds.map(id => parseInt(id))
@@ -417,8 +422,8 @@ export default function PostForm() {
       });
 
       if (res.ok) {
-        localStorage.removeItem(LOCAL_STORAGE_KEY);
-        router.push('/admin/posts');
+        localStorage.removeItem(storageKey);
+        router.push(isAdForm ? '/admin/ads' : '/admin/posts');
         router.refresh();
       } else {
         const errorData = await res.json();
@@ -505,6 +510,8 @@ export default function PostForm() {
       saves: 0,
       venue: null,
       isDraft: formData.isDraft,
+      isAd: formData.isAd,
+      advertiserName: formData.advertiserName,
       createdAt: new Date(),
       updatedAt: new Date(),
     };
@@ -526,10 +533,10 @@ export default function PostForm() {
       <div className="mb-10 flex flex-col sm:flex-row sm:items-end justify-between gap-6">
         <div>
           <h1 className="text-3xl sm:text-4xl font-black text-zinc-900 tracking-tight mb-2">
-            {isEdit ? 'Edit Archive' : 'New Archive Entry'}
+            {isEdit ? (isAdForm ? 'Edit Advertisement' : 'Edit Archive') : (isAdForm ? 'New Advertisement' : 'New Archive Entry')}
           </h1>
           <p className="text-zinc-500 font-medium lowercase">
-            {isEdit ? 'Refine the story of this destination' : 'Document a new piece of Bali\'s heritage'}
+            {isEdit ? 'Refine the story' : (isAdForm ? 'Create a sponsored destination feature' : 'Document a new piece of Bali\'s heritage')}
           </p>
         </div>
 
@@ -785,6 +792,12 @@ export default function PostForm() {
               <h2 className="text-[12px] font-black text-zinc-800  ">Details</h2>
             </div>
             <div className="p-6 space-y-5">
+              {isAdForm && (
+                <div>
+                  <label className="block text-[12px] font-black text-zinc-500 mb-2 ml-1">Advertiser Name</label>
+                  <input type="text" name="advertiserName" value={formData.advertiserName} onChange={handleChange} required placeholder="e.g. Bali Resort & Spa" className="w-full bg-white border border-amber-500 text-amber-900 rounded-xl px-4 py-3 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-amber-500/20 transition-colors placeholder:text-amber-500/50" />
+                </div>
+              )}
               <div>
                 <label className="block text-[12px] font-black text-zinc-500  mb-2 ml-1">Tagline</label>
                 <input type="text" name="tagline" value={formData.tagline} onChange={handleChange} required placeholder="Short catchphrase" className="w-full bg-white border border-zinc-200 rounded-xl px-4 py-3 text-sm font-bold text-zinc-900 focus:outline-none focus:border-zinc-400 transition-colors placeholder:text-zinc-300" />
@@ -958,7 +971,7 @@ export default function PostForm() {
             className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[200] transition-opacity"
             onClick={() => setIsPreviewOpen(false)}
           />
-          <ArticleSheet isOpen={isPreviewOpen} onClose={() => setIsPreviewOpen(false)} post={generatePreviewPost() as any} />
+          <ArticleSheet isOpen={isPreviewOpen} onClose={() => setIsPreviewOpen(false)} post={generatePreviewPost() as any} onFilter={() => {}} />
         </>
       )}
     </div>

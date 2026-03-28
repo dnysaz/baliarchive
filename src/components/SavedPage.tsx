@@ -10,9 +10,15 @@ interface SavedPageProps {
   onClose: () => void;
   savedPosts: Post[];
   onOpenPost: (post: Post) => void;
+  ads?: Post[];
 }
 
-export default function SavedPage({ isOpen, onClose, savedPosts, onOpenPost }: SavedPageProps) {
+export default function SavedPage({ isOpen, onClose, savedPosts, onOpenPost, ads = [] }: SavedPageProps) {
+  const displayAd = React.useMemo(() => {
+    if (!ads || ads.length === 0) return null;
+    return ads[Math.floor(Math.random() * ads.length)];
+  }, [isOpen, ads]);
+
   return (
     <div className={`font-sans fixed inset-0 z-[300] bg-zinc-50 flex flex-col transition-transform duration-500 ease-out ${isOpen ? 'translate-y-0 pointer-events-auto' : 'translate-y-full pointer-events-none'}`}>
       
@@ -39,7 +45,7 @@ export default function SavedPage({ isOpen, onClose, savedPosts, onOpenPost }: S
               {savedPosts.map(post => (
                 <button 
                   key={post.id} 
-                  className="relative group overflow-hidden rounded-[24px] aspect-[3/4] bg-white border border-black/5 appearance-none outline-none text-left cursor-pointer active:scale-[0.98] transition-all duration-300 shadow-sm"
+                  className="relative group overflow-hidden rounded-[24px] aspect-[3/4] bg-white appearance-none outline-none text-left cursor-pointer active:scale-[0.98] transition-all duration-300 shadow-sm hover:shadow-md"
                   onClick={(e) => { e.preventDefault(); e.stopPropagation(); onOpenPost(post); }}
                 >
                   {post.images[0]?.type === 'VIDEO' ? (
@@ -66,7 +72,7 @@ export default function SavedPage({ isOpen, onClose, savedPosts, onOpenPost }: S
             </div>
           ) : (
             <div className="flex flex-col items-center justify-center min-h-[50vh] max-w-sm mx-auto text-center gap-6">
-              <div className="w-24 h-24 bg-white rounded-full flex items-center justify-center shadow-lg shadow-black/[0.05] border border-black/[0.02]">
+              <div className="w-24 h-24 bg-white rounded-full flex items-center justify-center shadow-lg shadow-black/[0.05]">
                 <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z" />
                 </svg>
@@ -81,6 +87,41 @@ export default function SavedPage({ isOpen, onClose, savedPosts, onOpenPost }: S
           )}
         </div>
       </div>
+
+      {/* Docked Google Style Ad Banner */}
+      {displayAd && (
+        <div className="shrink-0 w-full bg-white shadow-[0_-4px_20px_rgba(0,0,0,0.05)] z-20">
+          <div className="max-w-6xl mx-auto w-full flex flex-col sm:flex-row items-stretch">
+            <div className="px-3 py-1.5 bg-gray-50/80 flex sm:flex-col items-center justify-between sm:justify-center shrink-0 w-full sm:w-auto">
+              <span className="text-[9px] font-black text-gray-500 tracking-widest uppercase sm:-rotate-180 sm:[writing-mode:vertical-rl] block">Sponsored</span>
+            </div>
+            <button 
+              className="flex-1 flex items-stretch text-left hover:bg-gray-50 transition-colors h-20 sm:h-24 outline-none appearance-none"
+              onClick={(e) => { e.preventDefault(); e.stopPropagation(); onOpenPost(displayAd); onClose(); }}
+            >
+              <div className="w-24 sm:w-32 bg-gray-100 shrink-0 relative overflow-hidden h-full">
+                {displayAd.images?.[0] ? (
+                  displayAd.images[0].type === 'VIDEO' ? (
+                    <video src={displayAd.images[0].url} className="w-full h-full object-cover" muted loop autoPlay playsInline />
+                  ) : (
+                    <img src={displayAd.images[0].url} className="w-full h-full object-cover" alt="" />
+                  )
+                ) : null}
+              </div>
+              <div className="flex-1 p-3 px-4 flex flex-col justify-between overflow-hidden">
+                <div>
+                  <h3 className="text-xs sm:text-sm font-bold text-gray-900 mb-0.5 leading-tight truncate">{displayAd.title}</h3>
+                  <p className="text-[10px] sm:text-xs text-gray-500 line-clamp-2 leading-snug">{displayAd.tagline}</p>
+                </div>
+                <div className="flex items-center justify-between mt-1">
+                  <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">{displayAd.advertiserName || 'Ad'}</span>
+                  <span className="text-blue-600 text-[10px] font-black">Explore &rarr;</span>
+                </div>
+              </div>
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
