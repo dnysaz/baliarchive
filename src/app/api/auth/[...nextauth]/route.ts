@@ -20,8 +20,7 @@ export const authOptions = {
         const searchEmail = credentials.email.toLowerCase().trim();
         const inputPassword = credentials.password.trim();
         
-        // Find user by email (using type cast to bypass linter if client generation is out of sync)
-        const user = await (prisma as any).user.findUnique({
+        const user = await prisma.user.findUnique({
           where: { email: searchEmail }
         });
 

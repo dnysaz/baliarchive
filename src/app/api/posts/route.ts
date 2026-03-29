@@ -2,94 +2,101 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 
 export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url);
+  const regencyId = searchParams.get('regencyId');
+  const hashtagId = searchParams.get('hashtagId');
+  const isDraft = searchParams.get('isDraft');
+
   try {
-    const { searchParams } = new URL(request.url);
-    const admin = searchParams.get('admin');
+    const where: any = {};
+    if (regencyId) where.regencyId = parseInt(regencyId);
+    if (isDraft !== null) where.isDraft = isDraft === 'true';
+    if (hashtagId) {
+      where.hashtags = {
+        some: { id: parseInt(hashtagId) },
+      };
+    }
 
     const posts = await prisma.post.findMany({
-      where: admin === 'true' ? {} : { isDraft: false },
-      include: { 
+      where,
+      include: {
         images: true,
-        location: true,
-        hashtags: true
-      } as any,
-      orderBy: { createdAt: 'desc' } as any
+        hashtags: true,
+        regency: true
+      },
+      orderBy: { createdAt: 'desc' },
     });
     return NextResponse.json(posts);
   } catch (error) {
-    return NextResponse.json({ error: 'Failed to fetch posts' }, { status: 500 });
+    return NextResponse.json({ error: 'Failed' }, { status: 500 });
   }
-}
-
-function generateSlug(text: string) {
-  return text.toString().toLowerCase().trim()
-    .replace(/[^\w\s-]/g, '') // remove non-word chars
-    .replace(/[\s_-]+/g, '-') // swap spaces and underscores for hyphens
-    .replace(/^-+|-+$/g, ''); // remove leading/trailing hyphens
 }
 
 export async function POST(request: Request) {
   try {
     const body = await request.json();
     const { 
-      locationId, province, hashtagIds, title, tagline, 
+      regencyId, province, hashtagIds, title, tagline, 
       likes, bestTime, howToGet, cost, body: contentBody, 
       venue, images, guidePdfUrl, lemonSqueezyUrl, guidePrice, googleMapsUrl, isDraft, isAd, advertiserName 
     } = body;
 
-    // Get names for backward compatibility fields if needed
-    const location = await (prisma as any).location.findUnique({ where: { id: locationId } });
-    
-    // Support multiple hashtags (limit to 3 for safety even if UI allows more)
+    // Support multiple hashtags
     const validHashtagIds = Array.isArray(hashtagIds) ? hashtagIds.slice(0, 3) : [];
-    
-    const mediaItems = (Array.isArray(images) ? images : []).filter(
-      (m: any): m is { url: string; type: string } => typeof m.url === 'string' && m.url.trim().length > 0
-    );
 
-    let slug = generateSlug(title);
-    let existingSlug = await prisma.post.findUnique({ where: { slug } as any });
-    if (existingSlug) {
-      slug = `${slug}-${Date.now()}`;
-    }
+    // Helper to generate slug from title
+    const slugify = (text: string) => {
+      const baseSlug = text
+        .toLowerCase()
+        .replace(/[^\w\s-]/g, '')
+        .replace(/[\s_-]+/g, '-')
+        .replace(/^-+|-+$/g, '');
+      const randomId = Math.random().toString(36).substring(2, 6);
+      return `${baseSlug}-${randomId}`;
+    };
+
+    const newSlug = slugify(title || 'untitled');
 
     const post = await prisma.post.create({
       data: {
-        kabupaten: location?.name || "",
-        province: province || "Bali",
         title,
-        slug,
-        tagline,
+        slug: newSlug,
+        tagline: tagline || '',
+        body: contentBody || '',
+        province: province || 'Bali',
+        regencyId: parseInt(regencyId),
+        bestTime: bestTime || '',
+        howToGet: howToGet || '',
+        cost: cost || '',
+        venue: venue || null,
+        guidePdfUrl,
+        guidePrice,
+        googleMapsUrl,
+        isDraft: Boolean(isDraft),
+        isAd: Boolean(isAd),
+        advertiserName: isAd ? advertiserName : null,
+        lemonSqueezyUrl,
         likes: parseInt(likes) || 0,
-        saves: 0,
-        bestTime,
-        howToGet,
-        cost,
-        body: contentBody,
-        venue,
-        // Store guide fields if provided. Convert '' to null so the UI can use truthy checks.
-        guidePdfUrl: guidePdfUrl || null,
-        lemonSqueezyUrl: lemonSqueezyUrl || null,
-        guidePrice: guidePrice || null,
-        googleMapsUrl: googleMapsUrl || null,
-        isDraft: isDraft || false,
-        isAd: isAd || false,
-        advertiserName: advertiserName || null,
-        // Use relation connect to avoid runtime mismatch with scalar fields.
-        location: { connect: { id: locationId } },
-        hashtags: { 
-          connect: validHashtagIds.map((id: number) => ({ id })) 
+        images: {
+          create: images && Array.isArray(images) ? images.map((img: { url: string; type: string }) => ({
+            url: img.url,
+            type: img.type || 'IMAGE',
+          })) : [],
         },
-        images: mediaItems.length > 0
-          ? { create: mediaItems.map((m: any) => ({ url: m.url, type: m.type || 'IMAGE' })) }
-          : undefined
-      } as any,
-      include: { images: true, location: true, hashtags: true } as any
+        hashtags: {
+          connect: validHashtagIds.map((id: number) => ({ id })),
+        },
+      },
+      include: {
+        images: true,
+        hashtags: true,
+        regency: true
+      },
     });
 
     return NextResponse.json(post);
   } catch (error) {
-    console.error(error);
-    return NextResponse.json({ error: 'Failed to create post' }, { status: 500 });
+    console.error('Error creating post:', error);
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }

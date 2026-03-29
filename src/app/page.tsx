@@ -4,25 +4,28 @@ import BaliArchive from "@/components/BaliArchive";
 
 export const dynamic = 'force-dynamic';
 
+
 interface Props {
   searchParams: Promise<{ post?: string }>;
 }
 
 export async function generateMetadata({ searchParams }: Props): Promise<Metadata> {
   const { post: postSlug } = await searchParams;
+  const settings = await (prisma as any).siteSettings.findFirst({ where: { id: 1 } });
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://baliarchive.com';
 
   if (postSlug) {
     const post = await prisma.post.findFirst({
-      where: { OR: [{ slug: postSlug }, { id: isNaN(Number(postSlug)) ? -1 : Number(postSlug) }] },
-      include: { images: true, hashtags: true, location: true },
+      where: { slug: postSlug },
+      include: { images: true, hashtags: true, regency: true },
     });
 
     if (post) {
       const ogImage = post.images[0]?.url ?? '/og-default.jpg';
-      const absoluteImage = ogImage.startsWith('http') ? ogImage : `${process.env.NEXT_PUBLIC_BASE_URL || 'https://baliarchive.com'}${ogImage}`;
+      const absoluteImage = ogImage.startsWith('http') ? ogImage : `${baseUrl}${ogImage}`;
 
       return {
-        title: `${post.title} — ${post.location?.name || 'BaliArchive'}`,
+        title: `${post.title} — ${post.regency?.name || 'BaliArchive'}`,
         description: post.tagline,
         openGraph: {
           title: post.title,
@@ -42,16 +45,34 @@ export async function generateMetadata({ searchParams }: Props): Promise<Metadat
     }
   }
 
+  const globalTitle = settings?.title || 'BaliArchive — Bali, As The Locals Know It';
+  const globalDesc = settings?.description || 'Insider guides to temples, culture, and hidden destinations across all 8 regencies.';
+  const globalKeywords = settings?.keywords || 'bali, travel, archive';
+  const globalOgImage = settings?.ogImage || '/og-default.jpg';
+  const absoluteOgImage = globalOgImage.startsWith('http') ? globalOgImage : `${baseUrl}${globalOgImage}`;
+
   return {
-    title: 'BaliArchive — Bali, As The Locals Know It',
-    description: 'Insider guides to temples, culture, and hidden destinations across all 8 regencies.',
+    title: globalTitle,
+    description: globalDesc,
+    keywords: globalKeywords,
     openGraph: {
-      title: 'BaliArchive',
-      description: 'Bali as the locals know it.',
-      images: [{ url: '/og-default.jpg', width: 1200, height: 630, alt: 'BaliArchive' }],
+      title: globalTitle,
+      description: globalDesc,
+      images: [{ url: absoluteOgImage, width: 1200, height: 630, alt: 'BaliArchive' }],
       type: 'website',
       siteName: 'BaliArchive',
     },
+    twitter: {
+      card: 'summary_large_image',
+      title: globalTitle,
+      description: globalDesc,
+      images: [absoluteOgImage],
+    },
+    icons: settings?.favicon ? {
+      icon: settings.favicon,
+      shortcut: settings.favicon,
+      apple: settings.favicon,
+    } : undefined
   };
 }
 
@@ -61,14 +82,20 @@ export default async function Home({ searchParams }: Props) {
   // Fetch regular posts
   const regularPosts = await prisma.post.findMany({
     where: { isDraft: false, isAd: false },
-    include: { images: true, hashtags: true, location: true },
+    include: { images: true, hashtags: true, regency: true },
     orderBy: { createdAt: 'desc' },
   });
 
   // Fetch all ads
   const ads = await prisma.post.findMany({
     where: { isDraft: false, isAd: true },
-    include: { images: true, hashtags: true, location: true },
+    include: { images: true, hashtags: true, regency: true },
+  });
+
+  // Fetch all regencies for the drawer
+  const allRegencies = await prisma.regency.findMany({
+    include: { _count: { select: { posts: true } } },
+    orderBy: { name: 'asc' },
   });
 
   // Interleave ads into regular posts
@@ -94,8 +121,8 @@ export default async function Home({ searchParams }: Props) {
   if (postSlug) {
     const isNum = !isNaN(Number(postSlug));
     const targetPost = await prisma.post.findFirst({
-      where: { OR: [{ slug: postSlug }, { id: isNum ? Number(postSlug) : -1 }] },
-      include: { images: true, hashtags: true, location: true },
+      where: { slug: postSlug },
+      include: { images: true, hashtags: true, regency: true },
     });
 
     if (targetPost && !feedData.some(p => p.id === targetPost.id)) {
@@ -103,5 +130,5 @@ export default async function Home({ searchParams }: Props) {
     }
   }
 
-  return <BaliArchive initialData={feedData} />;
+  return <BaliArchive initialData={feedData} allRegencies={allRegencies} />;
 }

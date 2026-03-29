@@ -41,18 +41,18 @@ const ToolbarButton = ({
 export default function PostForm({ isAdForm = false }: { isAdForm?: boolean }) {
   const router = useRouter();
   const params = useParams();
-  const isEdit = !!params?.id;
+  const isEdit = !!params?.slug;
   const storageKey = isAdForm ? 'baliarchive_draft_ad' : 'baliarchive_draft_post';
 
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [locations, setLocations] = useState<any[]>([]);
+  const [regencies, setRegencies] = useState<any[]>([]);
   const [hashtags, setHashtags] = useState<any[]>([]);
 
   const [formData, setFormData] = useState({
     title: '',
     tagline: '',
-    locationId: '',
+    regencyId: '',
     province: 'Bali',
     hashtagIds: [] as string[],
     venue: '',
@@ -156,27 +156,30 @@ export default function PostForm({ isAdForm = false }: { isAdForm?: boolean }) {
     handleModalClose();
   };
 
+  // --- Initial Data Fetch ---
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [locRes, hashRes] = await Promise.all([
-          fetch('/api/locations'),
-          fetch('/api/hashtags')
+        const [tagRes, regRes] = await Promise.all([
+          fetch('/api/hashtags'),
+          fetch('/api/regencies')
         ]);
-        const locData = await locRes.json();
-        const hashData = await hashRes.json();
-        setLocations(locData);
-        setHashtags(hashData);
+        
+        const tags = await tagRes.json();
+        const regs = await regRes.json();
+        
+        setHashtags(Array.isArray(tags) ? tags : []);
+        setRegencies(Array.isArray(regs) ? regs : []);
 
-        if (isEdit && params?.id) {
-          const postRes = await fetch(`/api/posts/${params.id}`);
+        if (isEdit && params?.slug) {
+          const postRes = await fetch(`/api/posts/${params.slug}`);
           const postData = await postRes.json();
           if (postData && !postData.error) {
             setFormData({
               ...postData,
-              locationId: postData.locationId?.toString() || '',
-              hashtagIds: postData.hashtags?.length > 0 ? postData.hashtags.map((h: any) => h.id.toString()) : [],
-              images: postData.images?.length > 0 ? postData.images.map((img: any) => ({ url: img.url, type: img.type || 'IMAGE' })) : [],
+              regencyId: postData.regencyId?.toString() || '',
+              hashtagIds: Array.isArray(postData.hashtags) ? postData.hashtags.map((h: any) => h.id.toString()) : [],
+              images: Array.isArray(postData.images) ? postData.images.map((img: any) => ({ url: img.url, type: img.type || 'IMAGE' })) : [],
               googleMapsUrl: postData.googleMapsUrl || '',
               isDraft: postData.isDraft || false,
               isAd: postData.isAd || isAdForm,
@@ -200,10 +203,10 @@ export default function PostForm({ isAdForm = false }: { isAdForm?: boolean }) {
             } catch (e) { }
           }
 
-          if (locData.length > 0 && (!parsedDraft || !parsedDraft.locationId)) {
-            setFormData(prev => ({ ...prev, locationId: locData[0].id.toString() }));
+          if (Array.isArray(regs) && regs.length > 0 && (!parsedDraft || !parsedDraft.regencyId)) {
+            setFormData(prev => ({ ...prev, regencyId: regs[0].id.toString() }));
           }
-          if (hashData.length > 0 && (!parsedDraft || !parsedDraft.hashtagIds)) {
+          if (Array.isArray(tags) && tags.length > 0 && (!parsedDraft || !parsedDraft.hashtagIds)) {
             setFormData(prev => ({ ...prev, hashtagIds: [] }));
           }
         }
@@ -214,7 +217,7 @@ export default function PostForm({ isAdForm = false }: { isAdForm?: boolean }) {
       }
     };
     fetchData();
-  }, [isEdit, params?.id, editor]);
+  }, [isEdit, params?.slug, editor]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -416,8 +419,8 @@ export default function PostForm({ isAdForm = false }: { isAdForm?: boolean }) {
           isAd: formData.isAd,
           advertiserName: formData.advertiserName?.trim() || null,
           images: validMedia, // Sends array of {url, type} objects
-          locationId: parseInt(formData.locationId),
-          hashtagIds: formData.hashtagIds.map(id => parseInt(id))
+          regencyId: parseInt(formData.regencyId),
+          hashtagIds: Array.isArray(formData.hashtagIds) ? formData.hashtagIds.map(id => parseInt(id)) : []
         })
       });
 
@@ -483,21 +486,20 @@ export default function PostForm({ isAdForm = false }: { isAdForm?: boolean }) {
 
   // --- Generate Dummy Post for Preview ---
   const generatePreviewPost = () => {
-    const selectedHashtags = hashtags.filter(h => formData.hashtagIds.includes(h.id.toString()));
-    const selectedLocation = locations.find(l => l.id.toString() === formData.locationId);
+    const selectedHashtags = Array.isArray(hashtags) ? hashtags.filter(h => formData.hashtagIds.includes(h.id.toString())) : [];
+    const selectedRegency = Array.isArray(regencies) ? regencies.find(r => r.id.toString() === formData.regencyId) : null;
 
     return {
       id: 0,
-      title: formData.title || 'Untitled Archive',
-      tagline: formData.tagline || 'Tagline will appear here',
+      title: formData.title || 'Untitled Post',
       category: selectedHashtags.length > 0 ? selectedHashtags[0].name : 'Category',
-      kabupaten: selectedLocation?.name || 'Location',
+      kabupaten: selectedRegency?.name || 'Regency',
       province: formData.province,
-      hashtagIds: formData.hashtagIds.map(id => parseInt(id)),
-      locationId: parseInt(formData.locationId) || 0,
+      hashtagIds: Array.isArray(formData.hashtagIds) ? formData.hashtagIds.map(id => parseInt(id)) : [],
+      regencyId: parseInt(formData.regencyId) || 0,
       hashtags: selectedHashtags,
-      location: selectedLocation,
-      bestTime: formData.bestTime || '-',
+      regency: selectedRegency,
+      tagline: formData.tagline || 'Tagline goes here',
       cost: formData.cost || 'Free',
       howToGet: formData.howToGet || '-',
       body: editor?.getHTML() || formData.body || '<p>Content will appear here.</p>',
@@ -505,7 +507,7 @@ export default function PostForm({ isAdForm = false }: { isAdForm?: boolean }) {
       lemonSqueezyUrl: formData.lemonSqueezyUrl,
       guidePrice: formData.guidePrice,
       googleMapsUrl: formData.googleMapsUrl,
-      images: formData.images.map((m, i) => ({ id: i, url: m.url, type: m.type, postId: 0 })),
+      images: Array.isArray(formData.images) ? formData.images.map((m, i) => ({ id: i, url: m.url, type: m.type, postId: 0 })) : [],
       likes: 0,
       saves: 0,
       venue: null,
@@ -729,12 +731,17 @@ export default function PostForm({ isAdForm = false }: { isAdForm?: boolean }) {
           {/* Flat Card: Media & Images */}
           <div className="bg-white rounded-2xl border border-zinc-200 overflow-hidden">
             <div className="px-6 py-4 border-b border-zinc-200 bg-zinc-50 flex items-center justify-between">
-              <h2 className="text-[12px] font-black text-zinc-800 ">Visual Assets</h2>
-              <span className="text-[12px] font-bold text-zinc-400 capitalize">{formData.images.length} / 5 Images</span>
+              <div className="flex items-center gap-3">
+                <h2 className="text-[12px] font-black text-zinc-800">Visual Assets</h2>
+                <span className="text-[10px] font-bold text-zinc-400 border-l border-zinc-200 pl-3">
+                  Rule: 5 Photos or 1 Video (Max 10MB/1min). Mixing is not allowed.
+                </span>
+              </div>
+              <span className="text-[12px] font-bold text-zinc-400 tracking-tight">{Array.isArray(formData.images) ? formData.images.length : 0} / 5</span>
             </div>
             <div className="p-6">
               <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
-                {formData.images.map((media, idx) => {
+                {Array.isArray(formData.images) && formData.images.map((media, idx) => {
                   const url = typeof media === 'string' ? media : media.url;
                   const type = typeof media === 'string' ? 'IMAGE' : media.type;
                   const isUploading = url.startsWith('blob:');
@@ -767,7 +774,7 @@ export default function PostForm({ isAdForm = false }: { isAdForm?: boolean }) {
                   );
                 })}
                 {/* Limit Logic: Hide add button if 1 video exists OR 5 photos exist */}
-                {!(formData.images.some(m => m.type === 'VIDEO')) && formData.images.length < 5 && (
+                {!(Array.isArray(formData.images) && formData.images.some(m => m.type === 'VIDEO')) && (Array.isArray(formData.images) ? formData.images.length : 0) < 5 && (
                   <button type="button" onClick={() => fileInputRef.current?.click()} className="aspect-square border border-dashed border-zinc-300 rounded-xl hover:border-zinc-500 hover:bg-zinc-50 transition-colors flex flex-col items-center justify-center gap-2 group">
                     <svg className="w-5 h-5 text-zinc-400 group-hover:text-zinc-600 transition-colors" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12" /></svg>
                     <span className="text-[12px] font-black text-zinc-400 group-hover:text-zinc-600 ">Add Media</span>
@@ -775,10 +782,6 @@ export default function PostForm({ isAdForm = false }: { isAdForm?: boolean }) {
                 )}
               </div>
               <input type="file" ref={fileInputRef} onChange={handleMediaUpload} accept="image/*,video/mp4" multiple className="hidden" />
-              <p className="mt-3 text-[10px] text-zinc-400 font-black uppercase tracking-widest leading-relaxed">
-                * RULE: 5 Photos <span className="text-zinc-300 mx-1">OR</span> 1 Video (Max 10MB/1min)<br/>
-                <span className="text-amber-500">Mixing photos and videos is NOT allowed.</span>
-              </p>
             </div>
           </div>
         </div>
@@ -802,11 +805,23 @@ export default function PostForm({ isAdForm = false }: { isAdForm?: boolean }) {
                 <label className="block text-[12px] font-black text-zinc-500  mb-2 ml-1">Tagline</label>
                 <input type="text" name="tagline" value={formData.tagline} onChange={handleChange} required placeholder="Short catchphrase" className="w-full bg-white border border-zinc-200 rounded-xl px-4 py-3 text-sm font-bold text-zinc-900 focus:outline-none focus:border-zinc-400 transition-colors placeholder:text-zinc-300" />
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-[12px] font-black text-zinc-500  mb-2 ml-1">Regency</label>
-                  <select name="locationId" value={formData.locationId} onChange={handleChange} required className="w-full bg-white border border-zinc-200 rounded-xl px-4 py-3 text-sm font-bold text-zinc-900 focus:outline-none focus:border-zinc-400 transition-colors appearance-none p-r-8">
-                    {locations.map(loc => <option key={loc.id} value={loc.id}>{loc.name}</option>)}
+              <div className="grid grid-cols-1 gap-4">
+                {/* Regency Dropdown */}
+                <div className="space-y-1.5">
+                  <label className="block text-[12px] font-black text-zinc-500 mb-2 ml-1">Regency</label>
+                  <select
+                    required
+                    name="regencyId"
+                    value={formData.regencyId}
+                    onChange={handleChange}
+                    className="w-full bg-white border border-zinc-200 rounded-xl px-4 py-3 text-sm font-bold text-zinc-900 focus:outline-none focus:border-zinc-400 transition-colors appearance-none cursor-pointer"
+                  >
+                    <option value="">Choose Regency...</option>
+                    {(regencies || []).map((r) => (
+                      <option key={r.id} value={r.id}>
+                        {r.name}
+                      </option>
+                    ))}
                   </select>
                 </div>
                 <div className="col-span-2">

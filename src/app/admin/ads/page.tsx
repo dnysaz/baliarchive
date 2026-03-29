@@ -123,7 +123,7 @@ export default function AdminAds() {
             {post.isDraft ? (
               <div className="absolute inset-0 z-0 cursor-not-allowed" title="Draft posts cannot be viewed publicly yet" />
             ) : (
-              <Link href={`/?post=${post.slug || post.id}`} className="absolute inset-0 z-0 cursor-pointer" />
+              <Link href={`/?post=${post.slug}`} className="absolute inset-0 z-0 cursor-pointer" />
             )}
             
             <div className="absolute inset-0 pointer-events-none bg-gradient-to-t from-black/70 via-black/20 to-transparent opacity-90 group-hover:opacity-100 transition-opacity duration-500 flex flex-col justify-end p-4">
@@ -142,7 +142,7 @@ export default function AdminAds() {
               
               <div className="pointer-events-auto flex items-center gap-2 mt-4 translate-y-4 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-300">
                 <Link 
-                  href={`/admin/ads/edit/${post.slug || post.id}`}
+                  href={`/admin/ads/edit/${post.slug}`}
                   className="flex-1 py-2 bg-white text-zinc-800 text-xs font-semibold text-center hover:bg-amber-500 hover:text-white transition-all rounded-md shadow-lg"
                 >
                   Edit

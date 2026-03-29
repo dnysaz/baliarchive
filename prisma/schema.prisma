@@ -16,22 +16,24 @@ model User {
   updatedAt DateTime @updatedAt
 }
 
-model Location {
-  id    Int    @id @default(autoincrement())
-  name  String @unique
-  posts Post[]
-}
-
 model Hashtag {
   id    Int    @id @default(autoincrement())
   name  String @unique
   posts Post[] @relation("HashtagToPost")
 }
 
+model Regency {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique
+  slug      String   @unique
+  posts     Post[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
 model Post {
   id              Int       @id @default(autoincrement())
-  kabupaten       String
-  locationId      Int
+  regencyId       Int       // FK to Regency
   province        String    @default("Bali")
   title           String
   slug            String?   @unique
@@ -54,9 +56,10 @@ model Post {
   isAd            Boolean   @default(false)
   advertiserName  String?
   images          Image[]
-  location        Location  @relation(fields: [locationId], references: [id])
+  regency         Regency   @relation(fields: [regencyId], references: [id])
   hashtags        Hashtag[] @relation("HashtagToPost")
 }
+
 
 model Image {
   id     Int    @id @default(autoincrement())
@@ -64,4 +67,13 @@ model Image {
   type   String @default("IMAGE") // New: supports IMAGE or VIDEO
   postId Int
   post   Post   @relation(fields: [postId], references: [id])
+}
+model SiteSettings {
+  id          Int      @id @default(1)
+  title       String?
+  description String?
+  keywords    String?
+  ogImage     String?
+  favicon     String?
+  updatedAt   DateTime @updatedAt
 }

@@ -31,7 +31,7 @@ ChartJS.register(
 export default function AdminDashboard() {
   const { status } = useSession();
   const router = useRouter();
-  const [stats, setStats] = useState({ posts: 0, locations: 0, hashtags: 0 });
+  const [stats, setStats] = useState({ posts: 0, regencies: 0, hashtags: 0 });
   const [globalStats, setGlobalStats] = useState({ views: 0, likes: 0, saves: 0 });
   const [topPosts, setTopPosts] = useState<any[]>([]);
   const [topAds, setTopAds] = useState<any[]>([]);
@@ -46,18 +46,18 @@ export default function AdminDashboard() {
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        const [postsRes, locationsRes, hashtagsRes] = await Promise.all([
+        const [postsRes, regenciesRes, hashtagsRes] = await Promise.all([
           fetch('/api/posts?admin=true'),
-          fetch('/api/locations'),
+          fetch('/api/regencies'),
           fetch('/api/hashtags')
         ]);
         const posts = await postsRes.json();
-        const locations = await locationsRes.json();
+        const regencies = await regenciesRes.json();
         const hashtags = await hashtagsRes.json();
         
         setStats({ 
           posts: Array.isArray(posts) ? posts.length : 0, 
-          locations: Array.isArray(locations) ? locations.length : 0, 
+          regencies: Array.isArray(regencies) ? regencies.length : 0, 
           hashtags: Array.isArray(hashtags) ? hashtags.length : 0 
         });
 
@@ -232,14 +232,14 @@ export default function AdminDashboard() {
                     </div>
                     <div className="min-w-0">
                       <Link 
-                        href={`/?post=${post.slug || post.id}`}
+                        href={`/?post=${post.slug}`}
                         target="_blank"
                         className="font-bold text-zinc-900 text-base truncate hover:text-amber-500 transition-colors tracking-tight flex items-center gap-1.5"
                       >
                         {post.title}
                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
                       </Link>
-                      <p className="text-[10px] font-bold text-zinc-400 tracking-widest uppercase mt-0.5">{post.kabupaten}</p>
+                      <p className="text-[10px] font-bold text-zinc-400 tracking-widest uppercase mt-0.5">{post.regency?.name || 'Unknown'}</p>
                     </div>
                   </div>
                 </td>
@@ -346,7 +346,7 @@ export default function AdminDashboard() {
               <h3 className="text-4xl font-black text-zinc-900 tracking-tight">{stats.posts}</h3>
               <div className="mt-4 flex items-center gap-1.5">
                 <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">Active Live</span>
+                <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">{stats.regencies} Regencies</span>
               </div>
             </div>
           </div>

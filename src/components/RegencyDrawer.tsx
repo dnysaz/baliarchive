@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import Link from 'next/link';
 
 const PuraIcon = ({ size = 22 }: { size?: number }) => (
   <svg width={size} height={size} viewBox="0 0 32 32" fill="none" stroke="#92400e" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
@@ -11,44 +12,47 @@ const PuraIcon = ({ size = 22 }: { size?: number }) => (
 
 import type { Prisma } from '@prisma/client';
 
-type Post = Prisma.PostGetPayload<{ include: { images: true, hashtags: true, location: true } }>;
+type Post = Prisma.PostGetPayload<{ include: { images: true, hashtags: true, regency: true } }>;
 
-interface Kabupaten {
+interface Regency {
   name: string;
   count: number;
 }
 
-interface KabupatenDrawerProps {
+interface RegencyDrawerProps {
   isOpen: boolean;
   onClose: () => void;
   activeKab: string | null;
   setActiveKab: (name: string | null) => void;
-  kabupatens: Kabupaten[];
+  regencies: Regency[];
   ads?: Post[];
   onSelectAd?: (post: Post) => void;
 }
 
-export default function KabupatenDrawer({ isOpen, onClose, activeKab, setActiveKab, kabupatens, ads = [], onSelectAd }: KabupatenDrawerProps) {
-  const regencyCount = kabupatens.filter(k => k.name !== 'All').length;
+export default function RegencyDrawer({ isOpen, onClose, activeKab, setActiveKab, regencies, ads = [], onSelectAd }: RegencyDrawerProps) {
+  const regencyCount = regencies.filter(k => k.name !== 'All').length;
 
-  const displayAd = React.useMemo(() => {
-    if (!ads || ads.length === 0) return null;
-    return ads[Math.floor(Math.random() * ads.length)];
+  const [displayAd, setDisplayAd] = React.useState<Post | null>(null);
+
+  React.useEffect(() => {
+    if (isOpen && ads && ads.length > 0) {
+      setDisplayAd(ads[Math.floor(Math.random() * ads.length)]);
+    }
   }, [isOpen, ads]);
 
   return (
-    <div className={`font-sans fixed inset-0 z-[300] bg-zinc-50 flex flex-col transition-transform duration-500 ease-out ${isOpen ? 'translate-y-0 pointer-events-auto' : 'translate-y-full pointer-events-none'}`}>
+    <div className={`font-sans fixed inset-0 z-[600] bg-zinc-50 flex flex-col transition-all duration-500 ease-out ${isOpen ? 'translate-y-0 opacity-100 visible pointer-events-auto' : 'translate-y-full opacity-0 invisible pointer-events-none'}`}>
       
       {/* Header */}
       <div className="shrink-0 flex items-center justify-between px-6 bg-white border-b-2 border-amber-500 pt-[max(24px,env(safe-area-inset-top))] pb-6 z-10">
         <div className="flex flex-col">
           <h1 className="text-xl md:text-2xl font-black text-zinc-900 tracking-tight leading-none mb-1">Explore by Region</h1>
-          <p className="text-[10px] md:text-[11px] font-bold tracking-widest uppercase text-amber-500">{regencyCount} Regencies Available</p>
+          <p className="text-[10px] md:text-[11px] font-bold tracking-widest uppercase text-amber-500">{regencyCount} {regencyCount === 1 ? 'Regency' : 'Regencies'} Available</p>
         </div>
         <button 
           type="button"
-          className="w-10 h-10 rounded-full bg-zinc-100 flex items-center justify-center text-zinc-600 hover:bg-zinc-200 hover:text-zinc-900 active:scale-95 transition-all outline-none cursor-pointer"
-          onClick={(e) => { e.preventDefault(); e.stopPropagation(); onClose(); }}
+          className="w-10 h-10 rounded-full bg-zinc-100 flex items-center justify-center text-zinc-600 hover:bg-zinc-200 hover:text-zinc-900 active:scale-95 transition-all outline-none cursor-pointer [touch-action:manipulation]"
+          onClick={() => onClose()}
         >
           <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
         </button>
@@ -58,20 +62,39 @@ export default function KabupatenDrawer({ isOpen, onClose, activeKab, setActiveK
       <div className="flex-1 overflow-y-auto p-6 lg:p-12">
         <div className="max-w-6xl mx-auto">
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 lg:gap-6">
-            {kabupatens.map(kab => (
-              <button 
-                key={kab.name}
-                className={`relative group overflow-hidden bg-white p-6 rounded-3xl shadow-sm flex flex-col items-start hover:shadow-md hover:shadow-amber-500/10 active:scale-[0.98] transition-all duration-300 text-left outline-none cursor-pointer ${activeKab === kab.name ? 'ring-2 ring-amber-500 bg-amber-50/30' : ''}`}
-                onClick={(e) => { e.preventDefault(); e.stopPropagation(); setActiveKab(kab.name); onClose(); }}
-              >
-                <div className="w-12 h-12 bg-amber-100/50 rounded-2xl flex items-center justify-center group-hover:bg-amber-100 transition-colors mb-2">
-                  <PuraIcon />
-                </div>
-                <div className="text-left w-full">
-                  <h3 className="text-lg font-black text-zinc-900 drop-shadow-sm mb-1 truncate">{kab.name}</h3>
-                  <p className="text-[10px] sm:text-[11px] font-bold text-zinc-400 tracking-widest uppercase">{kab.count} {kab.count === 1 ? 'place' : 'places'}</p>
-                </div>
-              </button>
+            {regencies.map(kab => (
+              /* Card = Link ke halaman regency */
+              <div key={kab.name} className="relative group">
+                <Link
+                  href={`/${kab.name.toLowerCase()}`}
+                  className={`relative overflow-hidden bg-white p-6 rounded-3xl shadow-sm flex flex-col items-start hover:shadow-md hover:shadow-amber-500/10 active:scale-[0.98] transition-all duration-300 text-left block w-full ${activeKab === kab.name ? 'ring-2 ring-amber-500 bg-amber-50/30' : ''}`}
+                >
+                  <div className="w-12 h-12 bg-amber-100/50 rounded-2xl flex items-center justify-center group-hover:bg-amber-100 transition-colors mb-3">
+                    <PuraIcon />
+                  </div>
+                  <div className="text-left w-full">
+                    <h3 className="text-lg font-black text-zinc-900 mb-1 truncate">{kab.name}</h3>
+                    <p className="text-[10px] font-bold text-zinc-400 tracking-widest uppercase">{kab.count} {kab.count === 1 ? 'place' : 'places'}</p>
+                  </div>
+                  <div className="mt-3 flex items-center gap-1 text-amber-500">
+                    <span className="text-[10px] font-black uppercase tracking-widest">View Profile</span>
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M5 12h14"/><path d="M12 5l7 7-7 7"/>
+                    </svg>
+                  </div>
+                </Link>
+
+                {/* Filter feed button — pojok kanan atas */}
+                <button
+                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); setActiveKab(kab.name); onClose(); }}
+                  className="absolute top-3 right-3 w-7 h-7 rounded-xl bg-zinc-100 hover:bg-amber-100 flex items-center justify-center transition-colors"
+                  title={`Filter by ${kab.name}`}
+                >
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#78716c" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/>
+                  </svg>
+                </button>
+              </div>
             ))}
           </div>
         </div>

@@ -15,10 +15,38 @@ const cormorantGaramond = Cormorant_Garamond({
   variable: "--font-cormorant",
 });
 
-export const metadata: Metadata = {
-  title: "BaliArchive — Bali, As The Locals Know It",
-  description: "BaliArchive — Bali as the locals know it. Insider guides to temples, culture, and hidden destinations across all 8 regencies.",
-};
+import prisma from "@/lib/prisma";
+
+export async function generateMetadata(): Promise<Metadata> {
+  const settings = await (prisma as any).siteSettings.findFirst({ where: { id: 1 } });
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+  
+  const globalTitle = settings?.title || "BaliArchive — Bali, As The Locals Know It";
+  const globalDesc = settings?.description || "BaliArchive — Bali as the locals know it. Insider guides to temples, culture, and hidden destinations across all 8 regencies.";
+  const globalIcon = settings?.favicon || "/favicon.ico";
+  const iconWithCache = `${globalIcon}${globalIcon.includes('?') ? '&' : '?'}v=1`;
+
+  return {
+    metadataBase: new URL(baseUrl),
+    title: {
+      default: globalTitle,
+      template: `%s | ${globalTitle}`,
+    },
+    description: globalDesc,
+    icons: {
+      icon: iconWithCache,
+      shortcut: iconWithCache,
+      apple: iconWithCache,
+    },
+    openGraph: {
+      title: globalTitle,
+      description: globalDesc,
+      siteName: globalTitle,
+      locale: 'en_ID',
+      type: 'website',
+    }
+  };
+}
 
 export const viewport: Viewport = {
   width: "device-width",

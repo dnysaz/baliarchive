@@ -2,7 +2,7 @@ import { withAuth, NextRequestWithAuth } from "next-auth/middleware";
 import { NextResponse } from "next/server";
 
 export default withAuth(
-  function middleware(req: NextRequestWithAuth) {
+  function proxy(req: NextRequestWithAuth) {
     const { pathname } = req.nextUrl;
     const method = req.method;
     const token = req.nextauth.token;
@@ -58,8 +58,8 @@ export const config = {
     "/admin/:path*",
     "/api/posts",
     "/api/posts/:path*",
-    "/api/locations",
-    "/api/locations/:path*",
+    "/api/regencies",
+    "/api/regencies/:path*",
     "/api/hashtags",
     "/api/hashtags/:path*",
     // Upload endpoint is admin-only — requires authentication

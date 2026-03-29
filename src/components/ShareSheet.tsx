@@ -18,7 +18,7 @@ function ShareSheetContent({ isOpen, onClose, post }: ShareSheetProps) {
   const [copied, setCopied] = useState(false);
 
   const shareUrl = post
-    ? `${window.location.origin}/?post=${post.slug || post.id}`
+    ? `${window.location.origin}/?post=${post.slug}`
     : '';
 
   const handleCopyLink = () => {

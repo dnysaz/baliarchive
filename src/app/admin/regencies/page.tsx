@@ -1,14 +1,12 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import ConfirmationModal from '@/components/ConfirmationModal';
 
-export default function AdminLocations() {
-  const { status } = useSession();
+export default function AdminRegencies() {
   const router = useRouter();
-  const [locations, setLocations] = useState<any[]>([]);
+  const [regencies, setRegencies] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [newName, setNewName] = useState('');
   const [editingId, setEditingId] = useState<number | null>(null);
@@ -19,25 +17,21 @@ export default function AdminLocations() {
   const [modalContent, setModalContent] = useState({ title: '', message: '' });
   const [confirmAction, setConfirmAction] = useState<(() => void) | null>(null);
 
-  useEffect(() => {
-    if (status === 'unauthenticated') router.push('/admin/login');
-  }, [status, router]);
-
-  const fetchLocations = async () => {
+  const fetchRegencies = async () => {
     try {
-      const res = await fetch('/api/locations');
+      const res = await fetch('/api/regencies');
       const data = await res.json();
-      setLocations(Array.isArray(data) ? data : []);
+      setRegencies(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error(err);
-      setLocations([]);
+      setRegencies([]);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchLocations();
+    fetchRegencies();
   }, []);
 
   const handleModalOpen = (title: string, message: string, onConfirm: () => void) => {
@@ -56,49 +50,51 @@ export default function AdminLocations() {
     handleModalClose();
   };
 
-  const createLocation = async (e: React.FormEvent) => {
+  const createRegency = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newName.trim()) return;
     try {
-      const res = await fetch('/api/locations', {
+      const slug = newName.toLowerCase().replace(/\s+/g, '-').trim();
+      const res = await fetch('/api/regencies', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: newName.trim() })
+        body: JSON.stringify({ name: newName.trim(), slug })
       });
       if (res.ok) {
         setNewName('');
-        fetchLocations();
+        fetchRegencies();
       }
     } catch (err) {
       console.error(err);
     }
   };
 
-  const updateLocation = async (id: number) => {
+  const updateRegency = async (id: number) => {
     if (!editName.trim()) return;
     try {
-      const res = await fetch(`/api/locations/${id}`, {
+      const slug = editName.toLowerCase().replace(/\s+/g, '-').trim();
+      const res = await fetch(`/api/regencies/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: editName.trim() })
+        body: JSON.stringify({ name: editName.trim(), slug })
       });
       if (res.ok) {
         setEditingId(null);
-        fetchLocations();
+        fetchRegencies();
       }
     } catch (err) {
       console.error(err);
     }
   };
 
-  const deleteLocation = (id: number, name: string) => {
+  const deleteRegency = (id: number, name: string) => {
     handleModalOpen(
       'Delete this Regency?',
-      `Are you sure you want to remove "${name}"? This will affect all associated archival entries.`,
+      `Are you sure you want to delete "${name}"? Any post using this regency will lose its association.`,
       async () => {
         try {
-          const res = await fetch(`/api/locations/${id}`, { method: 'DELETE' });
-          if (res.ok) fetchLocations();
+          const res = await fetch(`/api/regencies/${id}`, { method: 'DELETE' });
+          if (res.ok) fetchRegencies();
         } catch (err) {
           console.error(err);
         }
@@ -122,17 +118,17 @@ export default function AdminLocations() {
           <h1 className="text-4xl font-black text-zinc-900 tracking-tighter">Regency</h1>
         </div>
 
-        <form onSubmit={createLocation} className="flex gap-2 bg-white p-2 rounded-2xl border border-black/5 shadow-xl shadow-black/5 w-full md:w-auto">
+        <form onSubmit={createRegency} className="flex gap-2 bg-white p-2 rounded-2xl border border-black/5 shadow-xl shadow-black/5 w-full md:w-auto">
           <input
             type="text" value={newName} onChange={(e) => setNewName(e.target.value)}
-            placeholder="Enter regency name..."
-            className="px-5 py-3 text-sm font-bold text-zinc-800 focus:outline-none min-w-[240px]"
+            placeholder="Add Regency Name..."
+            className="px-5 py-3 text-sm font-bold text-zinc-900 focus:outline-none min-w-[240px]"
           />
           <button
             type="submit"
             className="px-8 py-3 bg-amber-500 text-white font-black text-xs uppercase tracking-widest hover:bg-amber-600 transition-all active:scale-95 rounded-xl shrink-0"
           >
-            Add
+            Create
           </button>
         </form>
       </div>
@@ -143,45 +139,49 @@ export default function AdminLocations() {
         message={modalContent.message}
         onConfirm={handleConfirm}
         onCancel={handleModalClose}
-        confirmText="Remove Forever"
+        confirmText="Confirm Delete"
       />
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-        {locations.map((loc) => (
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+        {regencies.map((reg) => (
           <div
-            key={loc.id}
-            className="group bg-white border border-black/5 p-6 rounded-[32px] hover:shadow-2xl hover:shadow-black/10 transition-all duration-500 relative"
+            key={reg.id}
+            className="group bg-white border border-black/5 p-5 rounded-[28px] hover:border-amber-500/30 hover:shadow-xl transition-all duration-300 relative"
           >
             <div className="flex flex-col h-full">
-              <div className="flex items-start justify-between mb-4">
-                <span className="text-[10px] font-black text-zinc-300 uppercase tracking-widest">#{loc.id}</span>
-                <div className="px-3 py-1 bg-zinc-50 rounded-full text-[10px] font-black text-zinc-400 uppercase tracking-widest">
-                  {loc._count?.posts || 0} Posts
-                </div>
+              <div className="flex items-center justify-between mb-4">
+                <span className="w-2 h-2 rounded-full bg-zinc-200 group-hover:bg-amber-500 transition-colors"></span>
+                <span className="text-[11px] font-black text-zinc-800">
+                  {reg._count?.posts || 0}
+                  <span className="text-zinc-400 ml-1 font-bold">Posts</span>
+                </span>
               </div>
 
-              {editingId === loc.id ? (
+              {editingId === reg.id ? (
                 <input
                   autoFocus
                   type="text" value={editName} onChange={(e) => setEditName(e.target.value)}
-                  onBlur={() => updateLocation(loc.id)}
-                  onKeyDown={(e) => e.key === 'Enter' && updateLocation(loc.id)}
-                  className="bg-zinc-50 border-2 border-amber-500 rounded-xl px-4 py-2 text-sm text-zinc-800 w-full focus:outline-none font-bold"
+                  onBlur={() => updateRegency(reg.id)}
+                  onKeyDown={(e) => e.key === 'Enter' && updateRegency(reg.id)}
+                  className="bg-zinc-50 border-2 border-amber-500 rounded-lg px-3 py-1 text-sm text-zinc-800 w-full focus:outline-none font-bold"
                 />
               ) : (
-                <h3 className="text-xl font-black text-zinc-900 tracking-tight group-hover:text-amber-500 transition-colors mb-6">{loc.name}</h3>
+                <>
+                  <h3 className="text-[17px] font-black text-zinc-900 tracking-tight truncate">{reg.name}</h3>
+                  <p className="text-[10px] text-zinc-400 font-bold uppercase tracking-widest mb-6">/{reg.slug}</p>
+                </>
               )}
 
-              <div className="mt-auto flex items-center gap-4 pt-4 border-t border-zinc-50">
+              <div className="mt-auto flex items-center justify-between opacity-0 group-hover:opacity-100 transition-opacity">
                 <button
-                  onClick={() => { setEditingId(loc.id); setEditName(loc.name); }}
-                  className="text-[10px] font-black uppercase tracking-widest text-zinc-400 hover:text-zinc-900 transition-colors"
+                  onClick={() => { setEditingId(reg.id); setEditName(reg.name); }}
+                  className="text-[10px] font-black uppercase text-zinc-400 hover:text-zinc-900"
                 >
                   Edit
                 </button>
                 <button
-                  onClick={() => deleteLocation(loc.id, loc.name)}
-                  className="text-[10px] font-black uppercase tracking-widest text-zinc-400 hover:text-red-500 transition-colors"
+                  onClick={() => deleteRegency(reg.id, reg.name)}
+                  className="text-[10px] font-black uppercase text-zinc-400 hover:text-red-500"
                 >
                   Delete
                 </button>
@@ -190,12 +190,17 @@ export default function AdminLocations() {
           </div>
         ))}
 
-        {locations.length === 0 && (
+        {regencies.length === 0 && (
           <div className="col-span-full py-20 bg-zinc-50/50 rounded-[40px] border border-dashed border-zinc-200 flex flex-col items-center justify-center">
-            <p className="text-zinc-400 font-bold italic">No regencies mapped yet</p>
-            <p className="text-[10px] text-zinc-400 uppercase font-black tracking-widest mt-2">Add your first region above</p>
+            <p className="text-zinc-400 font-bold italic">No regencies defined</p>
           </div>
         )}
+      </div>
+      
+      <div className="mt-12 text-center">
+        <button onClick={() => router.push('/admin')} className="text-[10px] font-black uppercase tracking-widest text-zinc-400 hover:text-zinc-900 transition-colors">
+          ← Back to Dashboard
+        </button>
       </div>
     </div>
   );

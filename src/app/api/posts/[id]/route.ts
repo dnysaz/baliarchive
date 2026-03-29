@@ -9,8 +9,8 @@ export async function GET(
   try {
     const isNum = !isNaN(parseInt(id)) && /^\d+$/.test(id);
     const post = await prisma.post.findUnique({
-      where: isNum ? { id: parseInt(id) } : { slug: id } as any,
-      include: { images: true, location: true, hashtags: true } as any
+      where: isNum ? { id: parseInt(id) } : { slug: id },
+      include: { images: true, regency: true, hashtags: true }
     });
     if (!post) return NextResponse.json({ error: 'Post not found' }, { status: 404 });
     return NextResponse.json(post);
@@ -27,18 +27,20 @@ export async function PUT(
   try {
     const body = await request.json();
     const { 
-      locationId, province, hashtagIds, title, tagline, 
+      regencyId, province, hashtagIds, title, tagline, 
       bestTime, howToGet, cost, body: contentBody, 
       venue, images, guidePdfUrl, lemonSqueezyUrl, guidePrice, googleMapsUrl, isDraft, isAd, advertiserName
     } = body;
 
-    const location = await (prisma as any).location.findUnique({ where: { id: locationId } });
+    const regency = await prisma.regency.findUnique({ where: { id: parseInt(regencyId) } });
     const validHashtagIds = Array.isArray(hashtagIds) ? hashtagIds.slice(0, 3) : [];
 
     const isNum = !isNaN(parseInt(id)) && /^\d+$/.test(id);
     const whereClause = isNum ? { id: parseInt(id) } : { slug: id };
 
-    const existingPost = await prisma.post.findUnique({ where: whereClause as any });
+    const existingPost = await prisma.post.findUnique({
+      where: isNum ? { id: parseInt(id) } : { slug: id }
+    });
     if (!existingPost) {
       return NextResponse.json({ error: 'Post not found' }, { status: 404 });
     }
@@ -62,16 +64,14 @@ export async function PUT(
     }
 
     const updateData: any = {
-      kabupaten: location?.name || "",
       province: province || "Bali",
       title,
-      tagline,
-      bestTime,
-      howToGet,
-      cost,
-      body: contentBody,
-      venue,
-      // Store guide fields if provided. Convert '' to null so the UI can use truthy checks.
+      tagline: tagline || "",
+      bestTime: bestTime || "",
+      howToGet: howToGet || "",
+      cost: cost || "",
+      body: contentBody || "",
+      venue: venue || null,
       guidePdfUrl: guidePdfUrl || null,
       lemonSqueezyUrl: lemonSqueezyUrl || null,
       guidePrice: guidePrice || null,
@@ -79,11 +79,10 @@ export async function PUT(
       isDraft: isDraft !== undefined ? isDraft : false,
       isAd: isAd !== undefined ? isAd : false,
       advertiserName: advertiserName || null,
-      // Use relation connect to avoid runtime mismatch with scalar fields.
-      location: { connect: { id: locationId } },
+      regency: { connect: { id: parseInt(regencyId) } },
       hashtags: { 
-        set: [], // Clear old relations
-        connect: validHashtagIds.map((id: number) => ({ id })) 
+        set: [], 
+        connect: validHashtagIds.map((id: number) => ({ id: parseInt(id as any) }))
       },
     };
 
@@ -96,7 +95,7 @@ export async function PUT(
     }
     if (title && title !== existingPost.title) {
       let newSlug = generateSlug(title);
-      let found = await prisma.post.findUnique({ where: { slug: newSlug } as any });
+      let found = await prisma.post.findUnique({ where: { slug: newSlug } });
       if (found && found.id !== actualId) {
          newSlug = `${newSlug}-${Date.now()}`;
       }
@@ -111,8 +110,8 @@ export async function PUT(
 
     const post = await prisma.post.update({
       where: { id: actualId },
-      data: updateData as any,
-      include: { images: true, location: true, hashtags: true } as any
+      data: updateData,
+      include: { images: true, regency: true, hashtags: true }
     });
 
     return NextResponse.json(post);
@@ -134,7 +133,9 @@ export async function DELETE(
     const isNum = !isNaN(parseInt(id)) && /^\d+$/.test(id);
     const whereClause = isNum ? { id: parseInt(id) } : { slug: id };
     
-    const existingPost = await prisma.post.findUnique({ where: whereClause as any });
+    const existingPost = await prisma.post.findUnique({
+      where: isNum ? { id: parseInt(id) } : { slug: id }
+    });
     if (!existingPost) return NextResponse.json({ error: 'Post not found' }, { status: 404 });
 
     await prisma.image.deleteMany({ where: { postId: existingPost.id } });

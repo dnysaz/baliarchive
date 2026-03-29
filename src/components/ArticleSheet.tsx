@@ -1,11 +1,11 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import DOMPurify from 'isomorphic-dompurify';
 
 import type { Prisma } from '@prisma/client';
 
-type Post = Prisma.PostGetPayload<{ include: { images: true, location: true, hashtags: true } }>;
+type Post = Prisma.PostGetPayload<{ include: { images: true, regency: true, hashtags: true } }>;
 
 interface ArticleSheetProps {
   isOpen: boolean;
@@ -15,12 +15,20 @@ interface ArticleSheetProps {
 }
 
 export default function ArticleSheet({ isOpen, onClose, post, onFilter }: ArticleSheetProps) {
-  const sheetRef = React.useRef<HTMLDivElement>(null);
+  const [shouldShow, setShouldShow] = useState(false);
+  const sheetRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    // Trigger entrance animation
+    const timer = setTimeout(() => setShouldShow(true), 10);
+    return () => clearTimeout(timer);
+  }, []);
+
   const [isLiked, setIsLiked] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
   const [likesCount, setLikesCount] = useState(0);
   const guidePdfUrl = post?.guidePdfUrl?.trim() || null;
-  const lemonSqueezyUrl = (post as any)?.lemonSqueezyUrl?.trim() || null;
+  const lemonSqueezyUrl = post?.lemonSqueezyUrl?.trim() || null;
   // Paid guide takes priority; free PDF is shown only if no paid link exists
   const hasPaidGuide = !!lemonSqueezyUrl;
   const hasFreeGuide = !!guidePdfUrl && !hasPaidGuide;
@@ -167,8 +175,8 @@ export default function ArticleSheet({ isOpen, onClose, post, onFilter }: Articl
   return (
     <div
       ref={sheetRef}
-      style={{ transform: isOpen && post ? 'translateY(0)' : 'translateY(100%)' }}
-      className={`font-sans fixed bottom-0 left-0 right-0 lg:left-1/2 lg:-translate-x-1/2 lg:max-w-2xl z-[300] bg-white text-black rounded-t-[32px] shadow-[0_-10px_60px_rgba(0,0,0,0.25)] max-h-[94vh] flex flex-col overscroll-y-contain transition-transform duration-500 ease-out ${isOpen && post ? 'pointer-events-auto' : 'pointer-events-none'
+      style={{ transform: (isOpen && shouldShow && post) ? 'translateY(0)' : 'translateY(100%)' }}
+      className={`font-sans fixed bottom-0 left-0 right-0 lg:left-1/2 lg:-translate-x-1/2 lg:max-w-2xl z-[500] bg-white text-black shadow-[0_-10px_60px_rgba(0,0,0,0.25)] h-[100dvh] flex flex-col overscroll-y-contain transition-transform duration-500 cubic-bezier(0.16, 1, 0.3, 1) ${isOpen && post ? 'visible opacity-100' : 'invisible opacity-0'
         }`}
     >
       {/* Drag handle */}
@@ -179,8 +187,8 @@ export default function ArticleSheet({ isOpen, onClose, post, onFilter }: Articl
         <span className="text-[8px] font-black tracking-[0.15em] text-zinc-400 normal-case">BaliArchive Guide</span>
         <button
           type="button"
-          className="w-10 h-10 rounded-full bg-zinc-100 flex items-center justify-center text-zinc-600 hover:bg-zinc-200 hover:text-zinc-900 active:scale-95 transition-all outline-none cursor-pointer"
-          onClick={(e) => { e.preventDefault(); e.stopPropagation(); onClose(); }}
+          onClick={() => onClose()}
+          className="w-10 h-10 rounded-full bg-zinc-100 flex items-center justify-center text-zinc-600 hover:bg-zinc-200 hover:text-zinc-900 active:scale-95 transition-all outline-none cursor-pointer [touch-action:manipulation]"
         >
           <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
         </button>
@@ -192,17 +200,17 @@ export default function ArticleSheet({ isOpen, onClose, post, onFilter }: Articl
           <div className="mb-7">
             <div className="flex items-center gap-1.5 mb-3.5 flex-wrap">
               <button 
-                onClick={() => post.location?.name && onFilter('regency', post.location.name)}
-                className="text-[12px] font-black text-amber-600 tracking-tighter normal-case hover:underline active:scale-95 transition-all text-left"
+                onClick={() => post.regency?.name && onFilter('regency', post.regency.name)}
+                className="py-1 px-3 text-zinc-500 font-bold hover:text-zinc-900 transition-colors"
               >
-                {post.location?.name || post.kabupaten}
+                {post.regency?.name}
               </button>
-              {(post as any).hashtags?.map((hash: any, i: number) => (
+              {post.hashtags?.map((hash: any, i: number) => (
                 <React.Fragment key={hash.id || i}>
                   <span className="w-0.5 h-0.5 bg-zinc-200 rounded-full" />
                   <button 
                     onClick={() => onFilter('tag', hash.name)}
-                    className="text-[12px] font-bold text-zinc-400 tracking-tighter normal-case hover:text-zinc-600 hover:underline active:scale-95 transition-all text-left"
+                    className="text-[12px] font-bold text-zinc-400 tracking-tighter normal-case hover:text-zinc-600 hover:underline active:scale-95 transition-all text-left [touch-action:manipulation]"
                   >
                     #{hash.name}
                   </button>
@@ -303,7 +311,7 @@ export default function ArticleSheet({ isOpen, onClose, post, onFilter }: Articl
             </div>
           )}
 
-          {(post as any).googleMapsUrl && (
+          {post.googleMapsUrl && (
             <div className="mt-6 bg-blue-50/30 rounded-[24px] border border-blue-100/50 overflow-hidden flex flex-col">
               {/* Interactive Iframe Map */}
               <div className="w-full h-[250px] sm:h-[300px] relative bg-zinc-100 pointer-events-auto">
@@ -341,7 +349,7 @@ export default function ArticleSheet({ isOpen, onClose, post, onFilter }: Articl
                   </div>
                 </div>
                 <a
-                  href={(post as any).googleMapsUrl}
+                  href={post.googleMapsUrl}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="px-5 py-2.5 bg-blue-600 text-white rounded-xl text-[10px] font-black hover:bg-blue-700 active:scale-95 transition-all shadow-md shadow-blue-600/20 text-center sm:w-auto w-full flex items-center justify-center gap-2 group"

@@ -128,8 +128,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           <nav className="space-y-1">
             <p className="text-[10px] font-bold text-zinc-400 tracking-widest mb-3 px-4">Database</p>
             <SidebarItem 
-              href="/admin/locations" 
-              active={pathname.startsWith('/admin/locations')} 
+              href="/admin/regencies" 
+              active={pathname.startsWith('/admin/regencies')} 
               label="Regencies" 
               icon={<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>} 
             />
@@ -138,6 +138,16 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               active={pathname.startsWith('/admin/hashtags')} 
               label="Hashtags" 
               icon={<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="4" y1="9" x2="20" y2="9"/><line x1="4" y1="15" x2="20" y2="15"/><line x1="10" y1="3" x2="8" y2="21"/><line x1="16" y1="3" x2="14" y2="21"/></svg>} 
+            />
+          </nav>
+
+          <nav className="space-y-1">
+            <p className="text-[10px] font-bold text-zinc-400 tracking-widest mb-3 px-4">Configuration</p>
+            <SidebarItem 
+              href="/admin/seo" 
+              active={pathname.startsWith('/admin/seo')} 
+              label="SEO Settings" 
+              icon={<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>} 
             />
           </nav>
         </div>

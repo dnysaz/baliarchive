@@ -3,7 +3,7 @@
 import React from 'react';
 import type { Prisma } from '@prisma/client';
 
-type Post = Prisma.PostGetPayload<{ include: { images: true, hashtags: true, location: true } }>;
+type Post = Prisma.PostGetPayload<{ include: { images: true, hashtags: true, regency: true } }>;
 
 interface SavedPageProps {
   isOpen: boolean;
@@ -20,7 +20,7 @@ export default function SavedPage({ isOpen, onClose, savedPosts, onOpenPost, ads
   }, [isOpen, ads]);
 
   return (
-    <div className={`font-sans fixed inset-0 z-[300] bg-zinc-50 flex flex-col transition-transform duration-500 ease-out ${isOpen ? 'translate-y-0 pointer-events-auto' : 'translate-y-full pointer-events-none'}`}>
+    <div className={`font-sans fixed inset-0 z-[600] bg-zinc-50 flex flex-col transition-all duration-500 ease-out ${isOpen ? 'translate-y-0 opacity-100 visible pointer-events-auto' : 'translate-y-full opacity-0 invisible pointer-events-none'}`}>
       
       {/* Header - Matching Search Styles */}
       <div className="shrink-0 flex items-center justify-between px-6 bg-white border-b-2 border-amber-500 pt-[max(20px,env(safe-area-inset-top))] pb-6 z-10">
@@ -30,8 +30,8 @@ export default function SavedPage({ isOpen, onClose, savedPosts, onOpenPost, ads
         </div>
         <button 
           type="button"
-          className="w-10 h-10 rounded-full bg-zinc-100 flex items-center justify-center text-zinc-600 hover:bg-zinc-200 hover:text-zinc-900 active:scale-95 transition-all outline-none cursor-pointer"
-          onClick={(e) => { e.preventDefault(); e.stopPropagation(); onClose(); }}
+          className="w-10 h-10 rounded-full bg-zinc-100 flex items-center justify-center text-zinc-600 hover:bg-zinc-200 hover:text-zinc-900 active:scale-95 transition-all outline-none cursor-pointer [touch-action:manipulation]"
+          onClick={() => onClose()}
         >
           <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
         </button>
@@ -49,7 +49,7 @@ export default function SavedPage({ isOpen, onClose, savedPosts, onOpenPost, ads
                   onClick={(e) => { e.preventDefault(); e.stopPropagation(); onOpenPost(post); }}
                 >
                   {post.images[0]?.type === 'VIDEO' ? (
-                    <video src={post.images[0].url} className="w-full h-full object-cover group-hover:scale-105 transition-all duration-700" playsInline muted loop autoPlay />
+                    <video src={post.images[0].url} className="w-full h-full object-cover group-hover:scale-105 transition-all duration-700" playsInline muted loop autoPlay preload="metadata" />
                   ) : (
                     <img 
                       src={post.images[0]?.url || ''} 
@@ -61,7 +61,7 @@ export default function SavedPage({ isOpen, onClose, savedPosts, onOpenPost, ads
                   {/* Gradient Overlay - Matching Search Styles */}
                   <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent flex flex-col justify-end p-4 transition-all duration-300">
                     <span className="text-[9px] font-black text-amber-500 uppercase tracking-widest mb-1 truncate">
-                      {post.location?.name || post.kabupaten}
+                        {post.regency?.name || 'Bali'}
                     </span>
                     <h3 className="text-white text-[11px] lg:text-sm font-bold leading-tight drop-shadow-md truncate group-hover:text-amber-400 transition-colors">
                       {post.title}
@@ -102,7 +102,7 @@ export default function SavedPage({ isOpen, onClose, savedPosts, onOpenPost, ads
               <div className="w-24 sm:w-32 bg-gray-100 shrink-0 relative overflow-hidden h-full">
                 {displayAd.images?.[0] ? (
                   displayAd.images[0].type === 'VIDEO' ? (
-                    <video src={displayAd.images[0].url} className="w-full h-full object-cover" muted loop autoPlay playsInline />
+                    <video src={displayAd.images[0].url} className="w-full h-full object-cover" muted loop autoPlay playsInline preload="metadata" />
                   ) : (
                     <img src={displayAd.images[0].url} className="w-full h-full object-cover" alt="" />
                   )

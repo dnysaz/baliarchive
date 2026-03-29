@@ -20,6 +20,7 @@ export async function POST(request: Request) {
   try {
     const formData = await request.formData();
     const file = formData.get('file') as File;
+    const requestedFolder = formData.get('folder') as string || 'uploads';
 
     if (!file) {
       return NextResponse.json({ error: 'No file uploaded' }, { status: 400 });
@@ -29,6 +30,13 @@ export async function POST(request: Request) {
     if (file.size > MAX_FILE_SIZE_BYTES) {
       return NextResponse.json({ error: 'File size exceeds the 10MB limit' }, { status: 413 });
     }
+
+    // Expanded MIME types for Favicons and SVG
+    const ALLOWED_MIME_TYPES = new Set([
+      'image/jpeg', 'image/png', 'image/webp', 'image/gif', 
+      'image/svg+xml', 'image/x-icon', 'image/vnd.microsoft.icon',
+      'video/mp4', 'application/pdf'
+    ]);
 
     // Validate MIME type against whitelist
     if (!ALLOWED_MIME_TYPES.has(file.type)) {
@@ -47,19 +55,25 @@ export async function POST(request: Request) {
       'image/png': 'png',
       'image/webp': 'webp',
       'image/gif': 'gif',
+      'image/svg+xml': 'svg',
+      'image/x-icon': 'ico',
+      'image/vnd.microsoft.icon': 'ico',
       'video/mp4': 'mp4',
       'application/pdf': 'pdf',
     };
     const fileExtension = MIME_TO_EXT[file.type] || 'blob';
     const fileName = `${uuidv4()}.${fileExtension}`;
-    const uploadDir = join(process.cwd(), 'public/uploads');
+    
+    // Choose the folder: public/uploads or public/seoImage
+    const subFolder = requestedFolder === 'seoImage' ? 'seoImage' : 'uploads';
+    const uploadDir = join(process.cwd(), 'public', subFolder);
     const path = join(uploadDir, fileName);
 
     // Ensure upload directory exists
     await mkdir(uploadDir, { recursive: true });
 
     await writeFile(path, buffer);
-    const url = `/uploads/${fileName}`;
+    const url = `/${subFolder}/${fileName}`;
 
     return NextResponse.json({ url });
   } catch (error) {

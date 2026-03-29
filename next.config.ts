@@ -9,7 +9,7 @@ const nextConfig: NextConfig = {
   reactCompiler: true,
   
   // Property allowedDevOrigins is now top-level, not inside experimental
-  allowedDevOrigins: ['127.0.0.1', 'localhost', '192.168.101.15'],
+  allowedDevOrigins: ['127.0.0.1', 'localhost', '192.168.101.15', '192.168.101.13'],
 
   // Security HTTP Headers — applied to all routes
   async headers() {
