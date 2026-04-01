@@ -65,7 +65,7 @@ export default function RootLayout({
       lang="en"
       className={`${dmSans.variable} ${cormorantGaramond.variable} h-full overflow-hidden`}
     >
-      <body className="bg-black text-white selection:bg-amber-500/30 font-sans">
+      <body suppressHydrationWarning className="bg-black text-white selection:bg-amber-500/30 font-sans">
         <Providers>
           {children}
         </Providers>

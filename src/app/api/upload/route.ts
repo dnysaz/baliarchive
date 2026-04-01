@@ -2,8 +2,12 @@ import { NextResponse } from 'next/server';
 import { writeFile, mkdir } from 'fs/promises';
 import { join } from 'path';
 import { v4 as uuidv4 } from 'uuid';
+import { getServerSession } from 'next-auth/next';
+import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+import isSessionAdmin from '@/lib/auth';
 
 // Allowed MIME types for upload (images + MP4 video + PDF for guide files)
+// NOTE: SVG and icon types are intentionally excluded to avoid script-in-SVG risks.
 const ALLOWED_MIME_TYPES = new Set([
   'image/jpeg',
   'image/png',
@@ -18,6 +22,16 @@ const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024;
 
 export async function POST(request: Request) {
   try {
+    // Require authenticated session for uploads (upload endpoint is admin-only)
+    const session = await getServerSession(authOptions as any);
+    if (!session) {
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
+    }
+// Admin check (logs removed now fixed)
+  if (!isSessionAdmin(session as any)) {
+    return NextResponse.json({ error: 'Forbidden - not admin' }, { status: 403 });
+  }
+
     const formData = await request.formData();
     const file = formData.get('file') as File;
     const requestedFolder = formData.get('folder') as string || 'uploads';
@@ -30,13 +44,6 @@ export async function POST(request: Request) {
     if (file.size > MAX_FILE_SIZE_BYTES) {
       return NextResponse.json({ error: 'File size exceeds the 10MB limit' }, { status: 413 });
     }
-
-    // Expanded MIME types for Favicons and SVG
-    const ALLOWED_MIME_TYPES = new Set([
-      'image/jpeg', 'image/png', 'image/webp', 'image/gif', 
-      'image/svg+xml', 'image/x-icon', 'image/vnd.microsoft.icon',
-      'video/mp4', 'application/pdf'
-    ]);
 
     // Validate MIME type against whitelist
     if (!ALLOWED_MIME_TYPES.has(file.type)) {
@@ -55,9 +62,6 @@ export async function POST(request: Request) {
       'image/png': 'png',
       'image/webp': 'webp',
       'image/gif': 'gif',
-      'image/svg+xml': 'svg',
-      'image/x-icon': 'ico',
-      'image/vnd.microsoft.icon': 'ico',
       'video/mp4': 'mp4',
       'application/pdf': 'pdf',
     };

@@ -1,5 +1,8 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { getServerSession } from 'next-auth/next';
+import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+import isSessionAdmin from '@/lib/auth';
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -34,6 +37,16 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
+    // Require authenticated session for creating posts
+    const session = await getServerSession(authOptions as any);
+    if (!session) {
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
+    }
+    // Only admins can create posts
+    if (!isSessionAdmin(session as any)) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
     const body = await request.json();
     const { 
       regencyId, province, hashtagIds, title, tagline, 
@@ -41,8 +54,28 @@ export async function POST(request: Request) {
       venue, images, guidePdfUrl, lemonSqueezyUrl, guidePrice, googleMapsUrl, isDraft, isAd, advertiserName 
     } = body;
 
+    // Basic server-side validation
+    if (!title || typeof title !== 'string' || title.trim().length === 0) {
+      return NextResponse.json({ error: 'Title is required' }, { status: 400 });
+    }
+    if (title.length > 300) {
+      return NextResponse.json({ error: 'Title too long' }, { status: 400 });
+    }
+    const rid = parseInt(regencyId);
+    if (isNaN(rid)) {
+      return NextResponse.json({ error: 'Invalid regencyId' }, { status: 400 });
+    }
+    const regency = await prisma.regency.findUnique({ where: { id: rid } });
+    if (!regency) {
+      return NextResponse.json({ error: 'Regency not found' }, { status: 400 });
+    }
+
+    // Validate images array (if provided)
+    const media = Array.isArray(images) ? images.filter((m: any) => m && typeof m.url === 'string' && (m.url.startsWith('/') || m.url.startsWith('http'))) : [];
+    const validHashtagIds = Array.isArray(hashtagIds) ? hashtagIds.map((id: any) => parseInt(id)).filter((n: number) => !isNaN(n)).slice(0,3) : [];
+
     // Support multiple hashtags
-    const validHashtagIds = Array.isArray(hashtagIds) ? hashtagIds.slice(0, 3) : [];
+  // (we already built validHashtagIds above)
 
     // Helper to generate slug from title
     const slugify = (text: string) => {

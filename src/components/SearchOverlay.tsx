@@ -45,7 +45,7 @@ export default function SearchOverlay({ isOpen, onClose, allPosts, onSelectPost,
         (p.venue && p.venue.toLowerCase().includes(lowerQuery)) ||
         (p.hashtags && p.hashtags.some((h: any) => h.name.toLowerCase().includes(cleanTagQuery)))
       )
-    ).slice(0, 8);
+    ).slice(0, 12);
   }, [searchQuery, allPosts]);
 
   const popularPosts = useMemo(() => {
@@ -102,9 +102,14 @@ export default function SearchOverlay({ isOpen, onClose, allPosts, onSelectPost,
                     
                     {/* Gradient Overlay */}
                     <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent flex flex-col justify-end p-4 transition-all duration-300">
-                      <span className="text-[9px] font-black text-amber-500 uppercase tracking-widest mb-1 truncate">
-                        {post.regency?.name || 'Bali'}
-                      </span>
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-[9px] font-black text-amber-500 uppercase tracking-widest truncate">
+                          {post.regency?.name || 'Bali'}
+                        </span>
+                        {post.isAd && (
+                          <span className="bg-amber-500 text-white text-[8px] font-black px-1.5 py-0.5 rounded uppercase tracking-tighter">AD</span>
+                        )}
+                      </div>
                       <h3 className="text-white text-[11px] lg:text-sm font-bold leading-tight drop-shadow-md truncate group-hover:text-amber-400 transition-colors">
                         {post.title}
                       </h3>

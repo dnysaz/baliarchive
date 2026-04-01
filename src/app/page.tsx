@@ -1,6 +1,9 @@
 import type { Metadata } from 'next';
+import type { Prisma } from '@prisma/client';
 import prisma from "@/lib/prisma";
 import BaliArchive from "@/components/BaliArchive";
+
+type Post = Prisma.PostGetPayload<{ include: { images: true, hashtags: true, regency: true } }>;
 
 export const dynamic = 'force-dynamic';
 
@@ -86,11 +89,10 @@ export default async function Home({ searchParams }: Props) {
     orderBy: { createdAt: 'desc' },
   });
 
-  // Fetch all ads
-  const ads = await prisma.post.findMany({
-    where: { isDraft: false, isAd: true },
-    include: { images: true, hashtags: true, regency: true },
-  });
+  // Fetch ads via API
+  const adsResponse = await fetch(`http://localhost:3000/api/ads`);
+  const adsData = await adsResponse.json();
+  const ads = Array.isArray(adsData) ? adsData : [];
 
   // Fetch all regencies for the drawer
   const allRegencies = await prisma.regency.findMany({
@@ -98,37 +100,47 @@ export default async function Home({ searchParams }: Props) {
     orderBy: { name: 'asc' },
   });
 
-  // Interleave ads into regular posts
-  let feedData = [...regularPosts];
-  if (ads.length > 0) {
-    // If there are very few regular posts, just add one ad at the end or random spot safely
-    if (feedData.length < 5) {
-      feedData.splice(Math.floor(Math.random() * (feedData.length + 1)), 0, ads[Math.floor(Math.random() * ads.length)]);
-    } else {
-      let insertIndex = Math.floor(Math.random() * 5) + 5; // First ad at index 5-10
-      let adIndex = 0;
-      const shuffledAds = [...ads].sort(() => 0.5 - Math.random());
-  
-      while (insertIndex <= feedData.length) {
-        feedData.splice(insertIndex, 0, shuffledAds[adIndex % shuffledAds.length]);
-        adIndex++;
-        insertIndex += Math.floor(Math.random() * 6) + 5; 
-      }
-    }
-  }
+  // Smart interleave ads
+  let feedData = getSmartInterleavedPosts(regularPosts, ads, undefined);
 
   // Ensure requested post exists in feedData
   if (postSlug) {
-    const isNum = !isNaN(Number(postSlug));
     const targetPost = await prisma.post.findFirst({
       where: { slug: postSlug },
       include: { images: true, hashtags: true, regency: true },
     });
 
     if (targetPost && !feedData.some(p => p.id === targetPost.id)) {
-      feedData.unshift(targetPost); // Inject requested post so it's not "Missing"
+      feedData.unshift(targetPost);
     }
   }
 
   return <BaliArchive initialData={feedData} allRegencies={allRegencies} />;
 }
+
+function getSmartInterleavedPosts(posts: Post[], ads: Post[], regency?: string): Post[] {
+  if (!ads || ads.length === 0) return posts;
+
+  const regencyAds = regency ? ads.filter(a => a.regency?.name === regency) : [];
+  const otherAds = ads.filter(a => !regencyAds.some(ra => ra.id === a.id));
+  const availableAds = [...regencyAds, ...otherAds.slice(0, 5)];
+
+  const shuffledAds = [...availableAds].sort(() => Math.random() - 0.5);
+
+  const result = [...posts];
+  let adIndex = 0;
+
+  for (let i = 3; i < result.length; i += 4) {
+    if (adIndex < shuffledAds.length) {
+      result.splice(i, 0, shuffledAds[adIndex]);
+      adIndex++;
+    }
+  }
+
+  if (result.length < 8 && adIndex < shuffledAds.length) {
+    result.push(shuffledAds[adIndex]);
+  }
+
+  return result;
+}
+

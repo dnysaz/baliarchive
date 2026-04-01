@@ -35,19 +35,25 @@ export default async function RegencyPage({ params }: Props) {
 
   if (!regencyData) notFound();
 
-  const posts = await prisma.post.findMany({
-    where: {
-      isDraft: false,
-      isAd: false,
-      regencyId: regencyData.id
-    },
-    include: {
-      images: true,
-      hashtags: true,
-      regency: true
-    },
-    orderBy: { createdAt: 'desc' },
-  });
+  const [postsPromise, adsPromise] = await Promise.all([
+    prisma.post.findMany({
+      where: {
+        isDraft: false,
+        isAd: false,
+        regencyId: regencyData.id
+      },
+      include: {
+        images: true,
+        hashtags: true,
+        regency: true
+      },
+      orderBy: { createdAt: 'desc' },
+    }),
+    fetch(`http://localhost:3000/api/ads?regencyId=${regencyData.id}`).then(res => res.json())
+  ]);
+
+  const posts = postsPromise;
+  const ads = Array.isArray(adsPromise) ? adsPromise : [];
 
   const stats = {
     totalPosts: posts.length,
@@ -55,5 +61,6 @@ export default async function RegencyPage({ params }: Props) {
     totalViews: posts.reduce((acc: any, p: any) => acc + (p.views || 0), 0),
   };
 
-  return <RegencyProfile regency={regencyData.name} posts={posts} stats={stats} />;
+  return <RegencyProfile regency={regencyData.name} posts={posts} stats={stats} ads={ads} interleaveAds={true} />;
 }
+

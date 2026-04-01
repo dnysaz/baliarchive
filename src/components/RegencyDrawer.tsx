@@ -33,6 +33,62 @@ export default function RegencyDrawer({ isOpen, onClose, activeKab, setActiveKab
   const regencyCount = regencies.filter(k => k.name !== 'All').length;
 
   const [displayAd, setDisplayAd] = React.useState<Post | null>(null);
+  // scroll persistence
+  const scrollRef = React.useRef<HTMLDivElement | null>(null);
+  const saveTimer = React.useRef<number | null>(null);
+  const STORAGE_KEY = 'explore:scroll';
+
+  const saveScroll = (pos?: number) => {
+    if (typeof window === 'undefined') return;
+    const value = typeof pos === 'number' ? pos : scrollRef.current?.scrollTop || 0;
+    try {
+      sessionStorage.setItem(STORAGE_KEY, String(value));
+    } catch (e) {
+      // ignore
+    }
+  };
+
+  const handleScroll = () => {
+    if (saveTimer.current) window.clearTimeout(saveTimer.current);
+    // debounce write
+    // @ts-ignore - window.setTimeout returns number in browser
+    saveTimer.current = window.setTimeout(() => {
+      saveScroll();
+      saveTimer.current = null;
+    }, 120);
+  };
+
+  React.useEffect(() => {
+    if (!isOpen) return;
+    if (typeof window === 'undefined') return;
+    // restore
+    const stored = sessionStorage.getItem(STORAGE_KEY);
+    const pos = stored ? parseInt(stored, 10) : 0;
+    if (scrollRef.current && pos > 0) {
+      // restore after a tick to ensure content rendered
+      requestAnimationFrame(() => {
+        try { scrollRef.current!.scrollTo({ top: pos }); } catch (e) { /* ignore */ }
+      });
+    }
+
+    return () => {
+      // save on unmount
+      saveScroll();
+      if (saveTimer.current) window.clearTimeout(saveTimer.current);
+    };
+  }, [isOpen]);
+  const closedRef = React.useRef(false);
+  const handleClose = (e?: React.MouseEvent | React.TouchEvent | React.KeyboardEvent) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    if (closedRef.current) return;
+    closedRef.current = true;
+    onClose();
+    // Reset after transition
+    setTimeout(() => { closedRef.current = false; }, 500);
+  };
 
   React.useEffect(() => {
     if (isOpen && ads && ads.length > 0) {
@@ -52,14 +108,16 @@ export default function RegencyDrawer({ isOpen, onClose, activeKab, setActiveKab
         <button 
           type="button"
           className="w-10 h-10 rounded-full bg-zinc-100 flex items-center justify-center text-zinc-600 hover:bg-zinc-200 hover:text-zinc-900 active:scale-95 transition-all outline-none cursor-pointer [touch-action:manipulation]"
-          onClick={() => onClose()}
+          onClick={handleClose}
+          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === 'Escape') handleClose(e as any); }}
+          aria-label="Close explore"
         >
           <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
         </button>
       </div>
 
       {/* Grid Content */}
-      <div className="flex-1 overflow-y-auto p-6 lg:p-12">
+      <div ref={scrollRef} onScroll={handleScroll} className="flex-1 overflow-y-auto p-6 lg:p-12">
         <div className="max-w-6xl mx-auto">
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 lg:gap-6">
             {regencies.map(kab => (

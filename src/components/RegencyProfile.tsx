@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React from 'react';
 import type { Prisma } from '@prisma/client';
 import Link from 'next/link';
 
@@ -16,6 +16,8 @@ interface RegencyProfileProps {
   regency: string;
   posts: Post[];
   stats: Stats;
+  ads?: Post[];
+  interleaveAds?: boolean;
 }
 
 const REGENCY_COVER: Record<string, string> = {
@@ -58,14 +60,39 @@ function formatNumber(n: number): string {
   return n.toString();
 }
 
-export default function RegencyProfile({ regency, posts, stats }: RegencyProfileProps) {
-  const [selectedPost, setSelectedPost] = useState<Post | null>(null);
+function getSmartInterleavedPosts(posts: Post[], ads: Post[], regency: string): Post[] {
+  if (!ads || ads.length === 0) return posts;
 
+  const regencyAds = ads.filter(a => a.regency?.name === regency);
+  const otherAds = ads.filter(a => !regencyAds.some(ra => ra.id === a.id));
+  const availableAds = [...regencyAds, ...otherAds.slice(0, 3)];
+
+  if (availableAds.length === 0) return posts;
+
+  const shuffledAds = [...availableAds].sort(() => Math.random() - 0.5);
+
+  const result = [...posts];
+  let adIndex = 0;
+
+  for (let i = 3; i < result.length; i += 4) {
+    if (adIndex < shuffledAds.length) {
+      result.splice(i, 0, shuffledAds[adIndex]);
+      adIndex++;
+      i++; 
+    }
+  }
+
+  return result;
+}
+
+export default function RegencyProfile({ regency, posts, stats, ads = [], interleaveAds = false }: RegencyProfileProps) {
   const coverGradient = REGENCY_COVER[regency] || 'from-zinc-900 via-zinc-700 to-zinc-500';
   const accentColor   = REGENCY_ACCENT[regency] || 'text-amber-400';
 
+  const displayPosts = interleaveAds ? getSmartInterleavedPosts(posts, ads, regency) : posts;
+
   // Pick cover image from most-liked post
-  const coverPost = [...posts].sort((a, b) => (b.likes || 0) - (a.likes || 0))[0];
+  const coverPost = [...displayPosts].sort((a, b) => (b.likes || 0) - (a.likes || 0))[0];
   const coverImage = coverPost?.images[0];
 
   return (
@@ -161,7 +188,7 @@ export default function RegencyProfile({ regency, posts, stats }: RegencyProfile
       </div>
 
       {/* ── TIKTOK-STYLE GRID ───────────────────────────── */}
-      {posts.length === 0 ? (
+      {displayPosts.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-24 text-center px-8">
           <div className="w-16 h-16 rounded-2xl bg-zinc-900 flex items-center justify-center mb-4">
             <PuraIcon />
@@ -171,13 +198,11 @@ export default function RegencyProfile({ regency, posts, stats }: RegencyProfile
         </div>
       ) : (
         <div className="grid grid-cols-3 gap-px bg-zinc-800">
-          {posts.map(post => (
-            <div
-              role="button"
-              tabIndex={0}
+          {displayPosts.map(post => (
+            <Link
+              href={`/?post=${post.slug}`}
               key={post.id}
-              onClick={() => setSelectedPost(post)}
-              className="relative aspect-[9/16] bg-zinc-900 overflow-hidden group outline-none [touch-action:manipulation] cursor-pointer"
+              className="relative aspect-9/16 bg-zinc-900 overflow-hidden group outline-none touch-manipulation cursor-pointer"
             >
               {/* Media */}
               {post.images[0]?.type === 'VIDEO' ? (
@@ -203,98 +228,58 @@ export default function RegencyProfile({ regency, posts, stats }: RegencyProfile
                 </div>
               )}
 
+              {/* Ad Badge */}
+              {post.isAd && (
+                <div className="absolute top-2 left-2 inline-block bg-amber-500/90 backdrop-blur text-white px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-wider shadow-lg z-10">
+                  Ad
+                </div>
+              )}
+
               {/* Overlay */}
-              <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
 
-              {/* Title */}
-              <div className="absolute bottom-0 left-0 right-0 p-2 translate-y-1 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-300">
+              {/* Bottom section: Title + Stats */}
+              <div className="absolute bottom-0 left-0 right-0 p-2 flex flex-col gap-1.5">
+                {/* Title */}
                 <p className="text-white text-[11px] font-bold leading-tight line-clamp-2 drop-shadow">{post.title}</p>
+
+                {/* Stats row (horizontal) */}
+                <div className="flex items-center gap-1.5 justify-between w-full">
+                  {/* Left: Views + Likes */}
+                  <div className="flex items-center gap-1 px-2 py-1 rounded-full bg-black/50 backdrop-blur-xl border border-white/10">
+                    {/* Views */}
+                    {(post.views || 0) > 0 && (
+                      <div className="flex items-center gap-0.5">
+                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#a1a1aa" strokeWidth="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                        <span className="text-white text-[8px] font-black">{formatNumber(post.views || 0)}</span>
+                      </div>
+                    )}
+                    {/* Divider */}
+                    {(post.views || 0) > 0 && (post.likes || 0) > 0 && <div className="w-px h-3 bg-white/20" />}
+                    {/* Likes */}
+                    {(post.likes || 0) > 0 && (
+                      <div className="flex items-center gap-0.5">
+                        <svg width="10" height="10" viewBox="0 0 24 24" fill="#ef4444"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+                        <span className="text-white text-[8px] font-black">{formatNumber(post.likes || 0)}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Right: Video badge */}
+                  {post.images[0]?.type === 'VIDEO' && (
+                    <div className="flex items-center justify-center w-6 h-6 rounded-full bg-black/50 backdrop-blur-xl border border-white/10">
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="white">
+                        <path d="M8 5v14l11-7z"/>
+                      </svg>
+                    </div>
+                  )}
+                </div>
               </div>
-
-              {/* Video badge */}
-              {post.images[0]?.type === 'VIDEO' && (
-                <div className="absolute top-2 right-2 opacity-70">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="white">
-                    <path d="M8 5v14l11-7z"/>
-                  </svg>
-                </div>
-              )}
-
-              {/* Likes badge */}
-              {(post.likes || 0) > 0 && (
-                <div className="absolute bottom-2 left-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <svg width="10" height="10" viewBox="0 0 24 24" fill="#ef4444"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
-                  <span className="text-white text-[10px] font-black">{formatNumber(post.likes || 0)}</span>
-                </div>
-              )}
-            </div>
+            </Link>
           ))}
-        </div>
-      )}
-
-      {/* ── POST DETAIL MODAL ──────────────────────────── */}
-      {selectedPost && (
-        <div
-          className="fixed inset-0 z-[500] bg-black/80 backdrop-blur-md flex items-end sm:items-center justify-center p-0 sm:p-6"
-          onClick={() => setSelectedPost(null)}
-        >
-          <div
-            className="bg-zinc-900 rounded-t-3xl sm:rounded-3xl w-full sm:max-w-lg max-h-[90vh] overflow-y-auto"
-            onClick={e => e.stopPropagation()}
-          >
-            {/* Media preview */}
-            <div className="relative aspect-[4/3] overflow-hidden rounded-t-3xl sm:rounded-3xl">
-              {selectedPost.images[0]?.type === 'VIDEO' ? (
-                <video src={selectedPost.images[0].url} className="w-full h-full object-cover" muted loop autoPlay playsInline />
-              ) : selectedPost.images[0]?.url ? (
-                <img src={selectedPost.images[0].url} alt={selectedPost.title} className="w-full h-full object-cover" />
-              ) : null}
-              <div className="absolute inset-0 bg-gradient-to-t from-zinc-900 via-transparent to-transparent" />
-
-              {/* Close */}
-              <div
-                role="button"
-                tabIndex={0}
-                onClick={() => setSelectedPost(null)}
-                className="absolute top-4 right-4 w-9 h-9 rounded-full bg-black/50 backdrop-blur flex items-center justify-center cursor-pointer [touch-action:manipulation]"
-              >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-                </svg>
-             </div>
-            </div>
-
-            {/* Info */}
-            <div className="p-5">
-              <span className={`text-[10px] font-black uppercase tracking-widest ${accentColor} mb-1 block`}>
-                {selectedPost.regency?.name || regency}
-              </span>
-              <h3 className="text-xl font-black text-white leading-tight mb-2">{selectedPost.title}</h3>
-              {selectedPost.tagline && (
-                <p className="text-zinc-400 text-sm font-medium leading-relaxed mb-4">{selectedPost.tagline}</p>
-              )}
-
-              <div className="flex items-center gap-4 mb-5">
-                <div className="flex items-center gap-1.5">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="#ef4444"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
-                  <span className="text-zinc-300 text-xs font-bold">{formatNumber(selectedPost.likes || 0)} likes</span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#a1a1aa" strokeWidth="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-                  <span className="text-zinc-300 text-xs font-bold">{formatNumber(selectedPost.views || 0)} views</span>
-                </div>
-              </div>
-
-              <Link
-                href={`/?post=${selectedPost.slug}`}
-                className="block w-full py-3.5 bg-white text-zinc-900 text-sm font-black text-center rounded-2xl hover:bg-zinc-100 active:scale-[0.98] transition-all"
-              >
-                Open in Full Archive →
-              </Link>
-            </div>
-          </div>
         </div>
       )}
     </div>
   );
 }
+

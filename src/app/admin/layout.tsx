@@ -5,19 +5,26 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { signOut, useSession } from 'next-auth/react';
 
-const SidebarItem = ({ href, icon, label, active }: { href: string; icon: React.ReactNode; label: string; active: boolean }) => (
+const SidebarItem = ({ href, icon, label, active, badge }: { href: string; icon: React.ReactNode; label: string; active: boolean; badge?: number }) => (
   <Link
     href={href}
-    className={`flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-300 group ${
+    className={`flex items-center justify-between px-4 py-2.5 rounded-xl transition-all duration-300 group ${
       active 
         ? 'bg-amber-500 text-white shadow-lg shadow-amber-500/20' 
         : 'text-zinc-500 hover:bg-black/5 hover:text-zinc-800'
     }`}
   >
-    <div className={`${active ? 'text-white' : 'text-zinc-400 group-hover:text-amber-500'} transition-colors`}>
-      {icon}
+    <div className="flex items-center gap-3">
+      <div className={`${active ? 'text-white' : 'text-zinc-400 group-hover:text-amber-500'} transition-colors`}>
+        {icon}
+      </div>
+      <span className={`text-[14px] ${active ? 'font-semibold' : 'font-medium'} tracking-tight`}>{label}</span>
     </div>
-    <span className={`text-[14px] ${active ? 'font-semibold' : 'font-medium'} tracking-tight`}>{label}</span>
+    {badge !== undefined && badge > 0 && !active && (
+      <div className="bg-amber-500 text-white text-[9px] font-black px-1.5 py-0.5 rounded-full min-w-[18px] text-center shadow-sm">
+        {badge > 99 ? '99+' : badge}
+      </div>
+    )}
   </Link>
 );
 
@@ -26,6 +33,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const { data: session } = useSession();
   const [mounted, setMounted] = React.useState(false);
   const [isMobile, setIsMobile] = React.useState(false);
+  const [messageCount, setMessageCount] = React.useState<number>(0);
 
   React.useEffect(() => {
     setMounted(true);
@@ -34,8 +42,27 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     };
     checkMobile();
     window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
-  }, []);
+
+    const fetchCount = async () => {
+      try {
+        const res = await fetch('/api/messages/count');
+        const data = await res.json();
+        if (data.count !== undefined) setMessageCount(data.count);
+      } catch (e) {
+        console.error('Failed to fetch count');
+      }
+    };
+
+    fetchCount();
+    
+    // Auto refresh every 30 seconds
+    const interval = setInterval(fetchCount, 30000);
+
+    return () => {
+      window.removeEventListener('resize', checkMobile);
+      clearInterval(interval);
+    };
+  }, [pathname]);
 
   if (pathname === '/admin/login') return <>{children}</>;
 
@@ -142,7 +169,36 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           </nav>
 
           <nav className="space-y-1">
+            <p className="text-[10px] font-bold text-zinc-400 tracking-widest mb-3 px-4">Interactions</p>
+            <SidebarItem 
+              href="/admin/messages" 
+              active={pathname.startsWith('/admin/messages')} 
+              label="User Inbox" 
+              badge={messageCount}
+              icon={<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>} 
+            />
+          </nav>
+
+          <nav className="space-y-1">
             <p className="text-[10px] font-bold text-zinc-400 tracking-widest mb-3 px-4">Configuration</p>
+            <SidebarItem 
+              href="/admin/about" 
+              active={pathname.startsWith('/admin/about')} 
+              label="About Page" 
+              icon={<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>} 
+            />
+            <SidebarItem 
+              href="/admin/terms" 
+              active={pathname.startsWith('/admin/terms')} 
+              label="T&C Page" 
+              icon={<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m12 2 3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" strokeLinecap="round" strokeLinejoin="round"/></svg>} 
+            />
+            <SidebarItem 
+              href="/admin/contact" 
+              active={pathname.startsWith('/admin/contact')} 
+              label="Contact Page" 
+              icon={<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 1 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>} 
+            />
             <SidebarItem 
               href="/admin/seo" 
               active={pathname.startsWith('/admin/seo')} 
@@ -151,6 +207,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             />
           </nav>
         </div>
+
 
         <div className="p-6 border-t border-black/5 bg-black/[0.02]">
           <div className="flex items-center gap-3 mb-4">

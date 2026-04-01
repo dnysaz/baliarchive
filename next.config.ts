@@ -9,7 +9,7 @@ const nextConfig: NextConfig = {
   reactCompiler: true,
   
   // Property allowedDevOrigins is now top-level, not inside experimental
-  allowedDevOrigins: ['127.0.0.1', 'localhost', '192.168.101.15', '192.168.101.13'],
+  allowedDevOrigins: ['127.0.0.1', 'localhost', '192.168.101.14'],
 
   // Security HTTP Headers — applied to all routes
   async headers() {
@@ -27,6 +27,12 @@ const nextConfig: NextConfig = {
           { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=()' },
           // Legacy XSS protection for older browsers
           { key: 'X-XSS-Protection', value: '1; mode=block' },
+          // Report-only Content Security Policy to observe violations without blocking.
+          // Review reports and then consider switching to a blocking CSP.
+          {
+            key: 'Content-Security-Policy-Report-Only',
+            value: "default-src 'self'; img-src 'self' data: https:; frame-src 'self' https://maps.google.com https://www.google.com; script-src 'self' 'unsafe-inline' https:; style-src 'self' 'unsafe-inline' https:;",
+          },
         ],
       },
     ];

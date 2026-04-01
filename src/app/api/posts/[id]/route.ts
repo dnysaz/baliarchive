@@ -1,5 +1,8 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { getServerSession } from 'next-auth/next';
+import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+import isSessionAdmin from '@/lib/auth';
 
 export async function GET(
   request: Request,
@@ -24,7 +27,17 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
+  console.log('PUT /api/posts/[id] called with param:', id);
   try {
+    // Require authenticated session for updates
+    const session = await getServerSession(authOptions as any);
+    if (!session) {
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
+    }
+    if (!isSessionAdmin(session as any)) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
     const body = await request.json();
     const { 
       regencyId, province, hashtagIds, title, tagline, 
@@ -38,12 +51,15 @@ export async function PUT(
     const isNum = !isNaN(parseInt(id)) && /^\d+$/.test(id);
     const whereClause = isNum ? { id: parseInt(id) } : { slug: id };
 
+    console.log('Looking for post with slug:', id, 'isNum:', isNum);
     const existingPost = await prisma.post.findUnique({
       where: isNum ? { id: parseInt(id) } : { slug: id }
     });
     if (!existingPost) {
+      console.log('Post not found for:', id);
       return NextResponse.json({ error: 'Post not found' }, { status: 404 });
     }
+    console.log('Found post ID:', existingPost.id, 'title:', existingPost.title);
     const actualId = existingPost.id;
 
     // IMPORTANT:
@@ -130,6 +146,15 @@ export async function DELETE(
 ) {
   const { id } = await params;
   try {
+    // Require authenticated session for deletes
+    const session = await getServerSession(authOptions as any);
+    if (!session) {
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
+    }
+    if (!isSessionAdmin(session as any)) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
     const isNum = !isNaN(parseInt(id)) && /^\d+$/.test(id);
     const whereClause = isNum ? { id: parseInt(id) } : { slug: id };
     

@@ -1,4 +1,7 @@
 import { NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+import isSessionAdmin from '@/lib/auth';
 import prisma from '@/lib/prisma';
 
 export async function GET() {
@@ -13,12 +16,18 @@ export async function GET() {
     });
     return NextResponse.json(regencies);
   } catch (error) {
-    return NextResponse.json({ error: 'Failed' }, { status: 500 });
+    console.error(error);
+    return NextResponse.json({ error: 'Failed to fetch regencies' }, { status: 500 });
   }
 }
 
 export async function POST(request: Request) {
   try {
+    const session = await getServerSession(authOptions);
+    if (!isSessionAdmin(session)) {
+      return NextResponse.json({ error: 'Forbidden - Admin required' }, { status: 403 });
+    }
+
     const { name, slug } = await request.json();
     const regency = await prisma.regency.create({
       data: { name, slug },
@@ -30,8 +39,7 @@ export async function POST(request: Request) {
     });
     return NextResponse.json(regency);
   } catch (error) {
-    return NextResponse.json({ error: 'Failed' }, { status: 500 });
+    console.error(error);
+    return NextResponse.json({ error: 'Failed to create regency' }, { status: 500 });
   }
 }
-
-

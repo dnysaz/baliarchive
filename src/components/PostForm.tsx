@@ -38,10 +38,11 @@ const ToolbarButton = ({
   </button>
 );
 
-export default function PostForm({ isAdForm = false }: { isAdForm?: boolean }) {
+export default function PostForm({ isAdForm = false, slug }: { isAdForm?: boolean, slug?: string }) {
   const router = useRouter();
   const params = useParams();
-  const isEdit = !!params?.slug;
+  const effectiveSlug = slug || (params?.slug as string | undefined);
+  const isEdit = !!effectiveSlug;
   const storageKey = isAdForm ? 'baliarchive_draft_ad' : 'baliarchive_draft_post';
 
   const [loading, setLoading] = useState(true);
@@ -164,15 +165,19 @@ export default function PostForm({ isAdForm = false }: { isAdForm?: boolean }) {
           fetch('/api/hashtags'),
           fetch('/api/regencies')
         ]);
-        
+
+        if (isEdit && effectiveSlug) {
+          console.log('Loading post for edit:', effectiveSlug);
+        }
+
         const tags = await tagRes.json();
         const regs = await regRes.json();
-        
+
         setHashtags(Array.isArray(tags) ? tags : []);
         setRegencies(Array.isArray(regs) ? regs : []);
 
         if (isEdit && params?.slug) {
-          const postRes = await fetch(`/api/posts/${params.slug}`);
+          const postRes = await fetch(`/api/posts/${effectiveSlug}`);
           const postData = await postRes.json();
           if (postData && !postData.error) {
             setFormData({
@@ -297,7 +302,7 @@ export default function PostForm({ isAdForm = false }: { isAdForm?: boolean }) {
         }
 
         let fileToUpload: File | Blob = file;
-        
+
         // Only compress images
         if (media.type === 'IMAGE') {
           const options = { maxSizeMB: 1, maxWidthOrHeight: 1920, useWebWorker: true, onProgress: (p: number) => setUploadProgress(prev => ({ ...prev, [currentPreviewUrl]: p })) };
@@ -313,8 +318,8 @@ export default function PostForm({ isAdForm = false }: { isAdForm?: boolean }) {
         let data;
         try {
           data = await res.json();
-        } catch(e) {
-           throw new Error('Server returned invalid JSON on upload.');
+        } catch (e) {
+          throw new Error('Server returned invalid JSON on upload.');
         }
 
         setUploadProgress((prev) => {
@@ -324,7 +329,7 @@ export default function PostForm({ isAdForm = false }: { isAdForm?: boolean }) {
         });
 
         if (!res.ok) {
-           throw new Error(data?.error || `Upload failed with status ${res.status}`);
+          throw new Error(data?.error || `Upload failed with status ${res.status}`);
         }
         return { url: data.url, type: media.type };
       });
@@ -333,8 +338,8 @@ export default function PostForm({ isAdForm = false }: { isAdForm?: boolean }) {
         console.error("Individual upload error:", e);
         return null;
       })));
-      
-      const validResults = uploadedResults.filter((res): res is { url: string; type: string } => 
+
+      const validResults = uploadedResults.filter((res): res is { url: string; type: string } =>
         res !== null && typeof res.url === 'string' && res.url.startsWith('/uploads/')
       );
 
@@ -403,7 +408,7 @@ export default function PostForm({ isAdForm = false }: { isAdForm?: boolean }) {
 
     setSubmitting(true);
     try {
-      const url = isEdit ? `/api/posts/${params?.id}` : '/api/posts';
+      const url = isEdit ? `/api/posts/${effectiveSlug}` : '/api/posts';
       const method = isEdit ? 'PUT' : 'POST';
       const res = await fetch(url, {
         method,
@@ -766,7 +771,7 @@ export default function PostForm({ isAdForm = false }: { isAdForm?: boolean }) {
                           Remove
                         </button>
                       )}
-                      
+
                       {type === 'VIDEO' && (
                         <div className="absolute top-2 left-2 px-1.5 py-0.5 bg-black/60 text-white text-[8px] font-black rounded uppercase">Video</div>
                       )}
@@ -986,7 +991,7 @@ export default function PostForm({ isAdForm = false }: { isAdForm?: boolean }) {
             className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[200] transition-opacity"
             onClick={() => setIsPreviewOpen(false)}
           />
-          <ArticleSheet isOpen={isPreviewOpen} onClose={() => setIsPreviewOpen(false)} post={generatePreviewPost() as any} onFilter={() => {}} />
+          <ArticleSheet isOpen={isPreviewOpen} onClose={() => setIsPreviewOpen(false)} post={generatePreviewPost() as any} onFilter={() => { }} />
         </>
       )}
     </div>

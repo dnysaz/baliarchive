@@ -75,5 +75,21 @@ model SiteSettings {
   keywords    String?
   ogImage     String?
   favicon     String?
+  aboutTitle  String   @default("Welcome to Bali Archive")
+  aboutContent String  @default("")
+  termsTitle  String   @default("Terms & Conditions")
+  termsContent String  @default("")
+  contactTitle String  @default("Contact")
+  contactContent String @default("")
   updatedAt   DateTime @updatedAt
 }
+
+model Message {
+  id        Int      @id @default(autoincrement())
+  email     String
+  content   String
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+

@@ -12,11 +12,37 @@ interface ArticleSheetProps {
   onClose: () => void;
   post: Post | null;
   onFilter: (type: 'regency' | 'tag', value: string) => void;
+  ads?: Post[];
+  onSelectAd?: (post: Post) => void;
 }
 
-export default function ArticleSheet({ isOpen, onClose, post, onFilter }: ArticleSheetProps) {
+export default function ArticleSheet({ isOpen, onClose, post, onFilter, ads = [], onSelectAd }: ArticleSheetProps) {
   const [shouldShow, setShouldShow] = useState(false);
   const sheetRef = useRef<HTMLDivElement>(null);
+
+  // Pick a targeted ad for this specific article (prioritize same regency)
+  const randomAd = useMemo(() => {
+    if (!ads.length || !isOpen || !post) return null;
+    
+    const currentRegencyId = post.regency?.id || post.regencyId;
+    const currentRegencyName = post.regency?.name;
+
+    // 1. Try to find ads from the SAME regency by ID or Name
+    const targetedAds = ads.filter(ad => {
+       const adRegId = ad.regency?.id || ad.regencyId;
+       const adRegName = ad.regency?.name;
+       
+       return (currentRegencyId && adRegId && currentRegencyId === adRegId) || 
+              (currentRegencyName && adRegName && currentRegencyName === adRegName);
+    });
+    
+    if (targetedAds.length > 0) {
+      return targetedAds[Math.floor(Math.random() * targetedAds.length)];
+    }
+    
+    // 2. Fallback to global ads if no local ads exist
+    return ads[Math.floor(Math.random() * ads.length)];
+  }, [ads, isOpen, post]);
 
   useEffect(() => {
     // Trigger entrance animation
@@ -172,6 +198,13 @@ export default function ArticleSheet({ isOpen, onClose, post, onFilter }: Articl
   }, [isOpen, onClose]);
 
 
+  // content persistence — scroll to top when post changes
+  useEffect(() => {
+    if (post) {
+      document.getElementById('sheet-content')?.scrollTo({ top: 0, behavior: 'instant' });
+    }
+  }, [post?.id]);
+
   return (
     <div
       ref={sheetRef}
@@ -198,10 +231,10 @@ export default function ArticleSheet({ isOpen, onClose, post, onFilter }: Articl
       {post && (
         <div id="sheet-content" className="flex-1 min-h-0 overflow-y-auto px-6 pb-20 pt-1 lg:px-10 scroll-smooth">
           <div className="mb-7">
-            <div className="flex items-center gap-1.5 mb-3.5 flex-wrap">
+            <div className="flex items-center gap-1.5 mb-3.5 flex-wrap -ml-1 lg:-ml-2">
               <button 
                 onClick={() => post.regency?.name && onFilter('regency', post.regency.name)}
-                className="py-1 px-3 text-zinc-500 font-bold hover:text-zinc-900 transition-colors"
+                className="py-1 px-3 text-[12px] font-bold text-amber-500 hover:underline transition-colors"
               >
                 {post.regency?.name}
               </button>
@@ -210,7 +243,7 @@ export default function ArticleSheet({ isOpen, onClose, post, onFilter }: Articl
                   <span className="w-0.5 h-0.5 bg-zinc-200 rounded-full" />
                   <button 
                     onClick={() => onFilter('tag', hash.name)}
-                    className="text-[12px] font-bold text-zinc-400 tracking-tighter normal-case hover:text-zinc-600 hover:underline active:scale-95 transition-all text-left [touch-action:manipulation]"
+                    className="text-[12px] font-bold text-amber-500 tracking-tighter normal-case hover:underline active:scale-95 transition-all text-left touch-manipulation"
                   >
                     #{hash.name}
                   </button>
@@ -227,17 +260,17 @@ export default function ArticleSheet({ isOpen, onClose, post, onFilter }: Articl
           </div>
 
           <div className="grid grid-cols-2 gap-2 mb-7">
-            <div className="bg-zinc-50/50 px-4 py-3 rounded-[16px] border border-black/[0.01]">
-              <p className="text-[8px] font-black text-zinc-400 tracking-tight mb-0.5 normal-case">Best time</p>
-              <p className="text-[8px] font-medium text-zinc-800 leading-tight">{post.bestTime}</p>
+            <div className="bg-amber-50/20 px-4 py-3 rounded-2xl border border-amber-200">
+              <p className="text-[8px] font-black text-amber-700 tracking-tight mb-0.5 normal-case">Best time</p>
+              <p className="text-[8px] font-medium text-amber-900 leading-tight">{post.bestTime}</p>
             </div>
-            <div className="bg-zinc-50/50 px-4 py-3 rounded-[16px] border border-black/[0.01]">
-              <p className="text-[8px] font-black text-zinc-400 tracking-tight mb-0.5 normal-case">Entrance</p>
-              <p className="text-[8px] font-medium text-zinc-800 leading-tight">{post.cost}</p>
+            <div className="bg-amber-50/20 px-4 py-3 rounded-2xl border border-amber-200">
+              <p className="text-[8px] font-black text-amber-700 tracking-tight mb-0.5 normal-case">Entrance</p>
+              <p className="text-[8px] font-medium text-amber-900 leading-tight">{post.cost}</p>
             </div>
-            <div className="col-span-2 bg-zinc-50/50 px-4 py-3 rounded-[16px] border border-black/[0.01]">
-              <p className="text-[8px] font-black text-zinc-400 tracking-tight mb-0.5 normal-case">Access</p>
-              <p className="text-[8px] font-medium text-zinc-800 leading-normal">{post.howToGet}</p>
+            <div className="col-span-2 bg-amber-50/20 px-4 py-3 rounded-2xl border border-amber-200">
+              <p className="text-[8px] font-black text-amber-700 tracking-tight mb-0.5 normal-case">Access</p>
+              <p className="text-[8px] font-medium text-amber-900 leading-normal">{post.howToGet}</p>
             </div>
           </div>
 
@@ -246,7 +279,33 @@ export default function ArticleSheet({ isOpen, onClose, post, onFilter }: Articl
             dangerouslySetInnerHTML={{
               __html: DOMPurify.sanitize(post.body || '')
             }}
-          />          {/* Paid Guide: LemonSqueezy Buy Button */}
+          />
+
+          {/* Iklan Baris (Small Inline Ad) */}
+          {randomAd && (
+            <button
+              onClick={(e) => { e.preventDefault(); e.stopPropagation(); onSelectAd?.(randomAd); }}
+              className="my-10 w-full flex items-center gap-4 p-4 py-4.5 bg-orange-50/20 rounded-2xl border border-orange-400/50 text-left transition-all active:scale-[0.98] group"
+            >
+              <div className="w-14 h-14 rounded-xl overflow-hidden shrink-0 bg-white border border-orange-200/50">
+                {randomAd.images[0]?.type === 'VIDEO' ? (
+                  <video src={randomAd.images[0].url} className="w-full h-full object-cover" muted loop autoPlay playsInline />
+                ) : (
+                   <img src={randomAd.images[0]?.url} alt="" className="w-full h-full object-cover" />
+                )}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="bg-orange-500 text-white text-[10px] font-black px-2 py-0.5 rounded uppercase tracking-tighter leading-none">AD</span>
+                </div>
+                <h4 className="text-[13px] font-bold text-zinc-900 truncate tracking-tight">{randomAd.title}</h4>
+                <p className="text-[10px] text-zinc-500 truncate mt-0.5 font-medium">{randomAd.tagline}</p>
+              </div>
+              <div className="text-blue-600 text-[10px] font-black shrink-0 px-2 group-hover:translate-x-1 transition-transform">Explore &rarr;</div>
+            </button>
+          )}
+
+          {/* Paid Guide: LemonSqueezy Buy Button */}
           {hasPaidGuide && (
             <div className="mt-12 bg-amber-50/40 rounded-[32px] p-6 sm:p-8 border border-amber-200/50 relative overflow-hidden">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 relative z-10">
@@ -363,11 +422,11 @@ export default function ArticleSheet({ isOpen, onClose, post, onFilter }: Articl
 
           {/* Metadata Footer */}
           <div className="mt-8 pt-6 border-t border-black/[0.04] flex items-center justify-between px-1">
-            <p className="text-[6px] font-medium text-gray-400">
+            <p className="text-[5px] font-medium text-gray-400">
               Posted {new Date(post.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}
             </p>
             {new Date(post.updatedAt).getTime() > new Date(post.createdAt).getTime() + 60000 && (
-              <p className="text-[6px] font-medium text-gray-400 text-right">
+              <p className="text-[5px] font-medium text-gray-400 text-right">
                 Updated {new Date(post.updatedAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}
               </p>
             )}

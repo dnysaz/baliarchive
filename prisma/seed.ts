@@ -16,7 +16,7 @@ async function main() {
   }
 
   const hashedPassword = await bcrypt.hash(adminPassword, 10);
-  const adminUser = await (prisma as any).user.upsert({
+  const adminUser = await prisma.user.upsert({
     where: { email: adminEmail },
     update: {},
     create: {
@@ -26,25 +26,43 @@ async function main() {
     },
   });
 
-  // 2. Create a default location
-  const baliLocation = await (prisma as any).location.upsert({
-    where: { name: 'Bali' },
+  // 2. Create default regencies
+  const regencies = [
+    { name: 'Badung', slug: 'badung' },
+    { name: 'Gianyar', slug: 'gianyar' },
+    { name: 'Denpasar', slug: 'denpasar' },
+    { name: 'Tabanan', slug: 'tabanan' },
+    { name: 'Karangasem', slug: 'karangasem' },
+    { name: 'Buleleng', slug: 'buleleng' },
+    { name: 'Klungkung', slug: 'klungkung' },
+    { name: 'Bangli', slug: 'bangli' },
+    { name: 'Jembrana', slug: 'jembrana' },
+    { name: 'Ubud', slug: 'ubud' },
+  ];
+
+  for (const regency of regencies) {
+    await prisma.regency.upsert({
+      where: { slug: regency.slug },
+      update: {},
+      create: {
+        name: regency.name,
+        slug: regency.slug,
+      },
+    });
+  }
+
+  // 3. Create default site settings
+  await prisma.siteSettings.upsert({
+    where: { id: 1 },
     update: {},
     create: {
-      name: 'Bali',
+      id: 1,
+      aboutTitle: 'Welcome to Bali Archive',
+      aboutContent: 'Bali Archive is a community-driven platform dedicated to sharing the hidden gems, temples, and destinations across Bali.',
     },
   });
 
-  // 3. Create a default hashtag
-  const baliHashtag = await (prisma as any).hashtag.upsert({
-    where: { name: 'bali' },
-    update: {},
-    create: {
-      name: 'bali',
-    },
-  });
-
-  console.log({ adminUser, baliLocation, baliHashtag });
+  console.log('Seed completed successfully');
 }
 
 main()

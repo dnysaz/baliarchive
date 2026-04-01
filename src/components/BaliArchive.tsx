@@ -59,6 +59,15 @@ const ChevronDownIcon = ({ size = 12, color = 'white' }: { size?: number; color?
   </svg>
 );
 
+const GridIcon = ({ size = 20, color = 'white' }: { size?: number; color?: string }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="3" y="3" width="7" height="7" />
+    <rect x="14" y="3" width="7" height="7" />
+    <rect x="14" y="14" width="7" height="7" />
+    <rect x="3" y="14" width="7" height="7" />
+  </svg>
+);
+
 // --- Action Buttons ---
 const ActionButton = ({ onClick, label, icon }: { onClick: (e: any) => void; label: string | number; icon: React.ReactNode }) => (
   <Link
@@ -97,6 +106,7 @@ const Card = ({
   isActive,
   isMuted,
   toggleMute,
+  audioUnlocked,
 }: {
   item: Post;
   isSaved: boolean;
@@ -109,6 +119,7 @@ const Card = ({
   isActive: boolean;
   isMuted: boolean;
   toggleMute: () => void;
+  audioUnlocked: boolean;
 }) => {
   const [activeSlide, setActiveSlide] = useState(0);
   const [showControls, setShowControls] = useState(false);
@@ -155,13 +166,21 @@ const Card = ({
       
       const isCurrentSlide = idx === activeSlide;
       const shouldPlay = isActive && isCurrentSlide;
-      const shouldMute = isMuted || !isActive || !isCurrentSlide;
-
-      video.muted = shouldMute;
+      
+      // We try to honor the global isMuted state, but browser might force mute on first play
+      video.muted = isMuted || !isActive || !isCurrentSlide;
 
       if (shouldPlay) {
         if (video.paused) {
-          video.play().catch(() => {});
+          const playPromise = video.play();
+          if (playPromise !== undefined) {
+            playPromise.catch(() => {
+              // Autoplay with sound might be blocked. 
+              // Fallback: Mute the video and try playing again to ensure NO BLACK SCREEN.
+              video.muted = true;
+              video.play().catch(e => console.error("Video play failed even when muted:", e));
+            });
+          }
         }
       } else {
         if (!video.paused) {
@@ -169,7 +188,7 @@ const Card = ({
         }
       }
     });
-  }, [isActive, isMuted, activeSlide]);
+  }, [isActive, isMuted, activeSlide, audioUnlocked]);
 
   const handleScroll = () => {
     if (carouselRef.current) {
@@ -249,11 +268,17 @@ const Card = ({
                     key={media.url}
                     ref={(el) => { videoRefs.current[idx] = el; }}
                     src={media.url}
-                    className="w-full h-full object-contain"
+                    poster={item.images.find(img => img.type === 'IMAGE')?.url}
+                    className="w-full h-full object-contain pointer-events-none"
                     playsInline
+                    webkit-playsinline="true"
                     autoPlay
                     loop
+                    controls={false}
+                    disableRemotePlayback
+                    onContextMenu={(e) => e.preventDefault()}
                     muted={isMuted || !isActive || idx !== activeSlide}
+                    preload="auto"
                     onPlay={() => setIsPlaying(true)}
                     onPause={() => setIsPlaying(false)}
                   />
@@ -280,7 +305,7 @@ const Card = ({
             {item.images[activeSlide]?.type === 'VIDEO' && (
               <ActionButton 
                 onClick={handleMuteToggle} 
-                label={isMuted ? "Muted" : "Unmuted"} 
+                label={isMuted ? "Off" : "On"} 
                 icon={isMuted ? (
                   <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path d="M11 5L6 9H2v6h4l5 4V5zM23 9l-6 6M17 9l6 6"/></svg>
                 ) : (
@@ -383,9 +408,12 @@ export default function BaliArchive({ initialData, allRegencies }: BaliArchivePr
   const router = useRouter();
   const searchParams = useSearchParams();
 
+  const [adRefreshKey, setAdRefreshKey] = useState(0);
+  const refreshAds = () => setAdRefreshKey(prev => prev + 1);
+
   // Reverting to State-based UI instead of URL-based
   const [uiState, setUiState] = useState<{
-    menu: null | 'search' | 'saved' | 'drawer';
+    menu: null | 'search' | 'saved' | 'drawer' | 'explore';
     post: string | null;
     share: string | null;
     regency: string | null;
@@ -397,16 +425,22 @@ export default function BaliArchive({ initialData, allRegencies }: BaliArchivePr
     share: null,
     regency: null,
     q: '',
-    mute: true
+    mute: false
   });
 
   const isSearchOpen = uiState.menu === 'search';
   const isSavedOpen = uiState.menu === 'saved';
   const isDrawerOpen = uiState.menu === 'drawer';
+  const isExploreOpen = uiState.menu === 'explore';
   const isShareOpen = !!uiState.share;
   const isSheetOpen = !!uiState.post;
   const activeKabupaten = uiState.regency;
   const searchQuery = uiState.q;
+
+  const handleOpenSearch = () => { refreshAds(); setUiState(prev => ({ ...prev, menu: 'search' })); };
+  const handleOpenSaved = () => { refreshAds(); setUiState(prev => ({ ...prev, menu: 'saved' })); };
+  const handleOpenExplore = () => { refreshAds(); setUiState(prev => ({ ...prev, menu: 'explore' })); };
+  const handleOpenDrawer = () => { refreshAds(); setUiState(prev => ({ ...prev, menu: 'drawer' })); };
 
   const setSearchQuery = (q: string) => {
     setUiState(prev => ({ ...prev, q }));
@@ -477,7 +511,13 @@ export default function BaliArchive({ initialData, allRegencies }: BaliArchivePr
       if (liked) setLikedPosts(new Set(JSON.parse(liked)));
       if (saved) setSavedPosts(new Set(JSON.parse(saved)));
       if (read) setReadPosts(new Set(JSON.parse(read)));
-      if (mute !== null) setUiState(prev => ({ ...prev, mute: mute === 'true' }));
+      
+      // If no preference is stored, we default to sound ON (mute=false)
+      if (mute !== null) {
+        setUiState(prev => ({ ...prev, mute: mute === 'true' }));
+      } else {
+        setUiState(prev => ({ ...prev, mute: false }));
+      }
     });
   }, []);
 
@@ -486,33 +526,57 @@ export default function BaliArchive({ initialData, allRegencies }: BaliArchivePr
     localStorage.setItem('isMuted', uiState.mute.toString());
   }, [uiState.mute]);
 
+  // Handle post parameter from URL
+  useEffect(() => {
+    const postSlug = searchParams.get('post');
+    if (postSlug) {
+      setUiState(prev => ({ ...prev, post: postSlug }));
+      
+      // Scroll to post after a slight delay to ensure DOM is ready
+      setTimeout(() => {
+        const post = posts.find(p => p.slug === postSlug);
+        if (post) {
+          const postElement = document.querySelector(`[data-id='${post.id}']`);
+          if (postElement) {
+            postElement.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+          }
+        }
+      }, 100);
+    }
+  }, [searchParams, posts]);
+
   const handleLike = async (id: number) => {
     const newLiked = new Set(likedPosts);
     const isLiking = !newLiked.has(id);
 
+    // 1. Optimistic UI update
     if (isLiking) {
       newLiked.add(id);
-      try {
-        const res = await fetch(`/api/posts/${id}/action`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'like' }),
-        });
-        if (res.ok) {
-          const data = await res.json();
-          setPosts(prev => prev.map(p => p.id === id ? { ...p, likes: data.likes } : p));
-          showToast('You liked this destination', 'like');
-        }
-      } catch (error) {
-        console.error('Failed to like:', error);
-      }
+      setPosts(prev => prev.map(p => p.id === id ? { ...p, likes: (p.likes || 0) + 1 } : p));
+      showToast('You liked this destination', 'like');
     } else {
       newLiked.delete(id);
+      setPosts(prev => prev.map(p => p.id === id ? { ...p, likes: Math.max(0, (p.likes || 0) - 1) } : p));
       showToast('Like removed', 'unlike');
     }
 
     setLikedPosts(newLiked);
     localStorage.setItem('likedPosts', JSON.stringify(Array.from(newLiked)));
+
+    // 2. Background sync
+    try {
+      const res = await fetch(`/api/posts/${id}/action`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: isLiking ? 'like' : 'unlike' }), // assuming unlike is handled
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setPosts(prev => prev.map(p => p.id === id ? { ...p, likes: data.likes } : p));
+      }
+    } catch (error) {
+      console.error('Failed to sync like:', error);
+    }
   };
 
   const handleSave = async (id: number) => {
@@ -545,6 +609,7 @@ export default function BaliArchive({ initialData, allRegencies }: BaliArchivePr
   };
 
   const handleRead = (post: Post) => {
+    refreshAds();
     setUiState(prev => ({ ...prev, post: post.slug || '' }));
     
     const newRead = new Set(readPosts);
@@ -559,19 +624,16 @@ export default function BaliArchive({ initialData, allRegencies }: BaliArchivePr
     setUiState(prev => ({ ...prev, post: null }));
   };
 
-  const handleOpenSearch = () => setUiState(prev => ({ ...prev, menu: 'search' }));
   const handleCloseSearch = () => setUiState(prev => ({ ...prev, menu: null, q: '' }));
-
-  const handleOpenSaved = () => setUiState(prev => ({ ...prev, menu: 'saved' }));
   const handleCloseSaved = () => setUiState(prev => ({ ...prev, menu: null }));
-
-  const handleOpenDrawer = () => setUiState(prev => ({ ...prev, menu: 'drawer' }));
   const handleCloseDrawer = () => setUiState(prev => ({ ...prev, menu: null }));
+  const handleCloseExplore = () => setUiState(prev => ({ ...prev, menu: null }));
 
   const handleOpenShare = (post: any) => setUiState(prev => ({ ...prev, share: post.slug || '' }));
   const handleCloseShare = () => setUiState(prev => ({ ...prev, share: null }));
 
   const handleSelectPost = (post: any) => {
+    refreshAds();
     // If the post is not currently in the filtered list, we need to clear the filter first
     if (activeKabupaten && post.regency?.name !== activeKabupaten) {
       setActiveKabupaten(null);
@@ -588,6 +650,24 @@ export default function BaliArchive({ initialData, allRegencies }: BaliArchivePr
     }, 50);
   };
 
+  // --- Audio Unlocking ---
+  const [audioUnlocked, setAudioUnlocked] = useState(false);
+
+  useEffect(() => {
+    const unlock = () => {
+      console.log("Audio Unlocked");
+      setAudioUnlocked(true);
+      // Force a re-render/re-sync of current active video audio
+      setActiveCardId(prev => (prev ? prev : prev));
+    };
+    window.addEventListener('touchstart', unlock, { once: true });
+    window.addEventListener('mousedown', unlock, { once: true });
+    return () => {
+      window.removeEventListener('touchstart', unlock);
+      window.removeEventListener('mousedown', unlock);
+    };
+  }, []);
+
   const handleSelectKabupaten = (kab: string | null) => {
     const newKab = kab === 'All' ? null : kab;
     setActiveKabupaten(newKab);
@@ -597,34 +677,74 @@ export default function BaliArchive({ initialData, allRegencies }: BaliArchivePr
 
 
 
+  // --- Optimized Advertising Algorithm ---
+  const interweaveAds = useCallback((regularPosts: Post[], adPosts: Post[], context: string) => {
+    if (adPosts.length === 0) return regularPosts;
+    
+    // Create a unique shuffle for THIS context
+    const shuffledAds = [...adPosts].sort(() => Math.random() - 0.5);
+    
+    const result: Post[] = [];
+    let adPointer = 0;
+    const interval = 4;
+    let postCount = 0;
+
+    regularPosts.forEach((post, i) => {
+      result.push(post);
+      postCount++;
+      
+      if (postCount >= interval) {
+        const ad = shuffledAds[adPointer % shuffledAds.length];
+        result.push({ ...ad, _displayId: `${ad.id}-${context}-${i}` } as any);
+        adPointer++;
+        postCount = 0;
+      }
+    });
+
+    return result;
+  }, []);
+
   const filteredPosts = useMemo(() => {
-    if (!activeKabupaten) return posts;
-    return posts.filter(p => p.regency?.name === activeKabupaten);
-  }, [posts, activeKabupaten]);
+    const regular = posts.filter(p => !p.isAd);
+    const ads = posts.filter(p => p.isAd);
+    
+    const base = !activeKabupaten 
+      ? regular 
+      : regular.filter(p => p.regency?.name === activeKabupaten);
+
+    return interweaveAds(base, ads, 'feed');
+  }, [posts, activeKabupaten, interweaveAds, adRefreshKey]);
 
   // --- Scroll Tracking with Observer ---
   useEffect(() => {
     const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
-          if (entry.isIntersecting && entry.intersectionRatio >= 0.5) {
+          if (entry.isIntersecting && entry.intersectionRatio > 0.45) {
             const id = Number(entry.target.getAttribute('data-id'));
-            if (id) setActiveCardId(id);
+            if (id && activeCardId !== id) {
+              setActiveCardId(id);
+            }
           }
         });
       },
-      { threshold: [0.1, 0.5, 0.8] } 
+      { 
+        threshold: [0, 0.25, 0.5, 0.75, 1],
+        rootMargin: '-5% 0px -5% 0px'
+      } 
     );
 
-    const cards = document.querySelectorAll('[data-card]');
+    const cards = document.querySelectorAll('[data-id]');
     cards.forEach((card) => observer.observe(card));
 
     return () => observer.disconnect();
-  }, [filteredPosts]);
+  }, [filteredPosts, activeCardId]);
 
   const savedPostsData = useMemo(() => {
-    return posts.filter(p => savedPosts.has(p.id));
-  }, [posts, savedPosts]);
+    const regular = posts.filter(p => savedPosts.has(p.id) && !p.isAd);
+    const ads = posts.filter(p => p.isAd);
+    return interweaveAds(regular, ads, 'saved');
+  }, [posts, savedPosts, interweaveAds, adRefreshKey]);
 
 
 
@@ -640,12 +760,23 @@ export default function BaliArchive({ initialData, allRegencies }: BaliArchivePr
     return filteredPosts.slice(0, visibleCount);
   }, [filteredPosts, visibleCount]);
 
+  const adsOnly = useMemo(() => posts.filter(p => p.isAd), [posts]);
+
   return (
     <>
       <main
         ref={mainRef}
         className="w-full h-full overflow-y-scroll snap-y snap-mandatory no-scrollbar bg-black"
         style={{ height: '100dvh' }}
+        onScroll={(e) => {
+          const main = e.currentTarget;
+          const idx = Math.round(main.scrollTop / main.clientHeight);
+          const visiblePosts = filteredPosts.slice(0, visibleCount);
+          const activePost = visiblePosts[idx];
+          if (activePost && activePost.id !== activeCardId) {
+            setActiveCardId(activePost.id);
+          }
+        }}
       >
         {displayedPosts.map(item => (
           <div key={item.id} data-card data-id={item.id} className="snap-start shrink-0">
@@ -661,6 +792,7 @@ export default function BaliArchive({ initialData, allRegencies }: BaliArchivePr
               isActive={activeCardId === item.id}
               isMuted={isGlobalMuted}
               toggleMute={toggleGlobalMute}
+              audioUnlocked={audioUnlocked}
             />
           </div>
         ))}
@@ -675,24 +807,20 @@ export default function BaliArchive({ initialData, allRegencies }: BaliArchivePr
       {/* --- Header & Overlays --- */}
       <header className="fixed top-0 left-0 right-0 z-[100] flex items-center justify-between gap-4 px-4 lg:px-8 pt-[max(16px,env(safe-area-inset-top))] pb-10 bg-linear-to-b from-black/60 to-transparent">
         <Link
-          href="#"
-          onClick={(e) => { e.preventDefault(); handleOpenDrawer(); }}
+          href="/about"
           className="flex items-center gap-2 px-5 py-3 rounded-full bg-black/20 backdrop-blur-xl border border-white/10 hover:bg-white/10 transition-all active:scale-95 shrink-0 shadow-xl [touch-action:manipulation] cursor-pointer"
         >
-          <span className="font-black text-[13px] tracking-tight text-white">{activeKabupaten || 'Bali Archive'}</span>
+          <span className="font-black text-[13px] tracking-tight text-white">Bali Archive</span>
           <ChevronDownIcon size={14} />
         </Link>
 
         <div className="flex items-center gap-2.5 shrink-0">
           <Link
-            href="/explore"
-            onClick={e => e.stopPropagation()}
-            className="w-11 h-11 rounded-full bg-black/20 backdrop-blur-xl border border-white/10 flex items-center justify-center hover:bg-white/10 transition-all active:scale-95 shadow-xl"
+            href="#"
+            onClick={(e) => { e.preventDefault(); handleOpenExplore(); }}
+            className="w-11 h-11 rounded-full bg-black/20 backdrop-blur-xl border border-white/10 flex items-center justify-center hover:bg-white/10 transition-all active:scale-95 shadow-xl [touch-action:manipulation] cursor-pointer"
           >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
-              <rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
-            </svg>
+            <GridIcon size={19} color="white" />
           </Link>
           <Link
             href="#"
@@ -712,13 +840,23 @@ export default function BaliArchive({ initialData, allRegencies }: BaliArchivePr
       </header>
 
       {isSheetOpen && activePost && (
-        <ArticleSheet isOpen={isSheetOpen} onClose={handleCloseSheet} post={activePost} onFilter={handleFilter} />
+        <ArticleSheet 
+          isOpen={isSheetOpen} 
+          onClose={handleCloseSheet} 
+          post={activePost} 
+          onFilter={handleFilter} 
+          ads={adsOnly} 
+          onSelectAd={(post) => handleSelectPost(post)}
+        />
       )}
       {isDrawerOpen && (
-        <RegencyDrawer isOpen={isDrawerOpen} onClose={handleCloseDrawer} regencies={regencyList} setActiveKab={handleSelectKabupaten} activeKab={activeKabupaten} ads={initialData.filter(p => p.isAd)} onSelectAd={(post) => { handleSelectPost(post); handleCloseDrawer(); }} />
+        <RegencyDrawer isOpen={isDrawerOpen} onClose={handleCloseDrawer} regencies={regencyList} setActiveKab={handleSelectKabupaten} activeKab={activeKabupaten} ads={adsOnly} onSelectAd={(post) => { handleSelectPost(post); handleCloseDrawer(); }} />
+      )}
+      {isExploreOpen && (
+        <RegencyDrawer isOpen={isExploreOpen} onClose={handleCloseExplore} regencies={regencyList} setActiveKab={handleSelectKabupaten} activeKab={activeKabupaten} ads={adsOnly} onSelectAd={(post) => { handleSelectPost(post); handleCloseExplore(); }} />
       )}
       {isSavedOpen && (
-        <SavedPage isOpen={isSavedOpen} onClose={handleCloseSaved} savedPosts={savedPostsData} onOpenPost={(post) => { handleSelectPost(post); handleCloseSaved(); }} ads={initialData.filter(p => p.isAd)} />
+        <SavedPage isOpen={isSavedOpen} onClose={handleCloseSaved} savedPosts={savedPostsData} onOpenPost={(post) => { handleSelectPost(post); handleCloseSaved(); }} ads={adsOnly} />
       )}
       {isSearchOpen && (
         <SearchOverlay isOpen={isSearchOpen} onClose={handleCloseSearch} allPosts={posts} onSelectPost={handleSelectPost} searchQuery={searchQuery} setSearchQuery={setSearchQuery} />
