@@ -49,8 +49,7 @@ async function main() {
     create: {
       email: adminEmail,
       name: 'BaliArchive Admin',
-      password: hashedPassword,
-      role: 'ADMIN' // Ensure role is ADMIN if your schema supports it
+      password: hashedPassword
     }
   });
 
