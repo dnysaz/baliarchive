@@ -358,8 +358,8 @@ const Card = ({
                     {item.regency?.name}
                   </button>
                 </div>
-                <h1 className="text-xl lg:text-2xl font-bold leading-tight line-clamp-2 no-tap">{item.title}</h1>
-                <p className="text-sm text-white/80 mt-1.5 line-clamp-2 no-tap">{item.tagline}</p>
+                <h1 className="text-xl lg:text-2xl font-bold leading-tight line-clamp-2 break-words no-tap">{item.title}</h1>
+                <p className="text-sm text-white/80 mt-1.5 line-clamp-2 break-words no-tap">{item.tagline}</p>
               </div>
             </div>
           </div>

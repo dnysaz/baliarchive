@@ -241,7 +241,7 @@ export default function RegencyProfile({ regency, posts, stats, ads = [], interl
               {/* Bottom section: Title + Stats */}
               <div className="absolute bottom-0 left-0 right-0 p-2 flex flex-col gap-1.5">
                 {/* Title */}
-                <p className="text-white text-[11px] font-bold leading-tight line-clamp-2 drop-shadow">{post.title}</p>
+                <p className="text-white text-[11px] font-bold leading-tight line-clamp-2 break-words drop-shadow">{post.title}</p>
 
                 {/* Stats row (horizontal) */}
                 <div className="flex items-center gap-1.5 justify-between w-full">

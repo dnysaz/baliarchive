@@ -229,7 +229,7 @@ export default function ArticleSheet({ isOpen, onClose, post, onFilter, ads = []
 
       {/* Content — only render when post exists */}
       {post && (
-        <div id="sheet-content" className="flex-1 min-h-0 overflow-y-auto px-6 pb-20 pt-1 lg:px-10 scroll-smooth">
+        <div id="sheet-content" className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-6 pb-20 pt-1 lg:px-10 scroll-smooth">
           <div className="mb-7">
             <div className="flex items-center gap-1.5 mb-3.5 flex-wrap -ml-1 lg:-ml-2">
               <button 
@@ -250,11 +250,11 @@ export default function ArticleSheet({ isOpen, onClose, post, onFilter, ads = []
                 </React.Fragment>
               ))}
             </div>
-            <h1 className="text-xl md:text-2xl font-black leading-[1.05] text-zinc-900 tracking-tight mb-3.5">
+            <h1 className="text-xl md:text-2xl font-black leading-[1.05] text-zinc-900 tracking-tight mb-3.5 break-words">
               {post.title}
             </h1>
             <div className="h-0.5 w-6 bg-amber-500/20 rounded-full mb-3.5" />
-            <p className="text-xs md:text-sm font-medium text-zinc-500 leading-relaxed italic">
+            <p className="text-xs md:text-sm font-medium text-zinc-500 leading-relaxed italic break-words">
               &ldquo;{post.tagline}&rdquo;
             </p>
           </div>
@@ -262,20 +262,20 @@ export default function ArticleSheet({ isOpen, onClose, post, onFilter, ads = []
           <div className="grid grid-cols-2 gap-2 mb-7">
             <div className="bg-amber-50/20 px-4 py-3 rounded-2xl border border-amber-200">
               <p className="text-[8px] font-black text-amber-700 tracking-tight mb-0.5 normal-case">Best time</p>
-              <p className="text-[8px] font-medium text-amber-900 leading-tight">{post.bestTime}</p>
+              <p className="text-[8px] font-medium text-amber-900 leading-tight break-words">{post.bestTime}</p>
             </div>
             <div className="bg-amber-50/20 px-4 py-3 rounded-2xl border border-amber-200">
               <p className="text-[8px] font-black text-amber-700 tracking-tight mb-0.5 normal-case">Entrance</p>
-              <p className="text-[8px] font-medium text-amber-900 leading-tight">{post.cost}</p>
+              <p className="text-[8px] font-medium text-amber-900 leading-tight break-words">{post.cost}</p>
             </div>
             <div className="col-span-2 bg-amber-50/20 px-4 py-3 rounded-2xl border border-amber-200">
               <p className="text-[8px] font-black text-amber-700 tracking-tight mb-0.5 normal-case">Access</p>
-              <p className="text-[8px] font-medium text-amber-900 leading-normal">{post.howToGet}</p>
+              <p className="text-[8px] font-medium text-amber-900 leading-normal break-words">{post.howToGet}</p>
             </div>
           </div>
 
           <div
-            className="prose prose-zinc max-w-none prose-p:text-zinc-600 prose-p:leading-relaxed prose-p:text-[11px] prose-headings:text-zinc-900 prose-headings:font-black prose-img:rounded-lg prose-a:text-blue-600 prose-a:no-underline hover:prose-a:underline prose-blockquote:border-l-4 prose-blockquote:border-amber-500/20 prose-blockquote:bg-zinc-50/50 prose-blockquote:px-4 prose-blockquote:py-1 prose-blockquote:rounded-r-lg prose-blockquote:italic"
+            className="prose prose-zinc max-w-none break-words prose-p:text-zinc-600 prose-p:leading-relaxed prose-p:text-[11px] prose-headings:text-zinc-900 prose-headings:font-black prose-img:rounded-lg prose-a:text-blue-600 prose-a:no-underline hover:prose-a:underline prose-blockquote:border-l-4 prose-blockquote:border-amber-500/20 prose-blockquote:bg-zinc-50/50 prose-blockquote:px-4 prose-blockquote:py-1 prose-blockquote:rounded-r-lg prose-blockquote:italic"
             dangerouslySetInnerHTML={{
               __html: DOMPurify.sanitize(post.body || '')
             }}
